@@ -246,7 +246,8 @@ const App: React.FC = () => {
       if (provider === 'gommo') {
           const modelId = conceptSettings.gommoModel || 'google_image_gen_banana_pro';
           const modelInfo = gommoModelsCache.find(m => m.model === modelId);
-          if (modelInfo && modelInfo.price) {
+          // Fix: Check strictly for number type to allow 0 cost
+          if (modelInfo && typeof modelInfo.price === 'number') {
               estimatedCost = modelInfo.price;
           } else {
               estimatedCost = 4; // Fallback cost for Gommo if unknown
@@ -261,11 +262,14 @@ const App: React.FC = () => {
       }
 
       // --- DEDUCT CREDITS FIRST (Reservation) ---
-      try {
-          await deductUserCredits(currentUser.uid, estimatedCost);
-      } catch (err) {
-          alert("Lỗi hệ thống: Không thể trừ credits. Vui lòng thử lại sau.");
-          return;
+      // Only deduct if cost is greater than 0
+      if (estimatedCost > 0) {
+          try {
+              await deductUserCredits(currentUser.uid, estimatedCost);
+          } catch (err) {
+              alert("Lỗi hệ thống: Không thể trừ credits. Vui lòng thử lại sau.");
+              return;
+          }
       }
 
       setIsImageProcessing(true);
@@ -345,11 +349,14 @@ const App: React.FC = () => {
         await saveImageToGallery(newItem);
         setGalleryItems(prev => [newItem, ...prev]);
 
-        // Success: Credits already deducted at start.
+        // Success: Credits already deducted at start (if cost > 0).
 
       } catch (e: any) {
         // --- REFUND CREDITS ON ERROR ---
-        await deductUserCredits(currentUser.uid, -estimatedCost);
+        // Only refund if we actually deducted something (cost > 0)
+        if (estimatedCost > 0) {
+            await deductUserCredits(currentUser.uid, -estimatedCost);
+        }
         
         const errorMessage = e.message || 'Lỗi tạo ảnh';
         setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
