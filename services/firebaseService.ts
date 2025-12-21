@@ -39,6 +39,7 @@ const syncUserToFirestore = async (user: firebase.User) => {
         const userRef = db.collection('users').doc(user.uid);
         
         const docSnap = await userRef.get();
+        const currentData = docSnap.exists ? docSnap.data() : {};
         
         const userData: any = {
             uid: user.uid,
@@ -47,12 +48,13 @@ const syncUserToFirestore = async (user: firebase.User) => {
             photoURL: user.photoURL,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
             // Giữ nguyên role nếu đã có, nếu chưa thì set theo logic admin
-            role: docSnap.exists && docSnap.data()?.role ? docSnap.data()?.role : (isAdmin ? 'admin' : 'user')
+            role: currentData?.role ? currentData.role : (isAdmin ? 'admin' : 'user')
         };
 
         // Nếu user chưa tồn tại hoặc chưa có trường credits, tặng 10 credits dùng thử
-        if (!docSnap.exists || docSnap.data()?.credits === undefined) {
-            userData.credits = docSnap.exists ? (docSnap.data()?.credits ?? 10) : 10;
+        // Kiểm tra kỹ undefined để tránh reset khi credits = 0
+        if (currentData?.credits === undefined) {
+            userData.credits = 10;
         }
 
         await userRef.set(userData, { merge: true });
@@ -114,29 +116,31 @@ export const listenToUserRealtime = (uid: string, callback: (data: any) => void)
 export const fetchAllUsers = async () => {
     if (!db) return [];
     try {
-        // Lấy tất cả user. 
-        // Lưu ý: Nếu database mới chưa index trường lastLogin, việc orderBy có thể gây lỗi hoặc trả về rỗng.
-        // Ta sẽ thử lấy không sort trước nếu sort thất bại, hoặc bỏ sort để đảm bảo hiện đủ data.
-        let snapshot;
-        try {
-            snapshot = await db.collection('users').orderBy('lastLogin', 'desc').get();
-        } catch (e) {
-            console.warn("Sorting failed (missing index?), fetching unsorted list.", e);
-            snapshot = await db.collection('users').get();
-        }
+        // QUAN TRỌNG: Bỏ orderBy('lastLogin') ở server để tránh lỗi "Missing Index"
+        // Thay vào đó ta lấy toàn bộ list về và sort ở client (JavaScript)
+        const snapshot = await db.collection('users').get();
 
-        return snapshot.docs.map(doc => {
+        const users = snapshot.docs.map(doc => {
             const data = doc.data();
             // Convert Timestamp to readable string if needed
             const lastLoginDate = data.lastLogin?.toDate ? data.lastLogin.toDate().toLocaleString() : 'N/A';
+            const timestamp = data.lastLogin?.toMillis ? data.lastLogin.toMillis() : 0;
+            
             return {
                 id: doc.id,
                 ...data,
-                lastLogin: lastLoginDate
+                lastLogin: lastLoginDate,
+                _sortTime: timestamp // Dùng để sort
             };
         });
+        
+        // Sort Client-side: Mới nhất lên đầu
+        users.sort((a, b) => b._sortTime - a._sortTime);
+
+        return users;
     } catch (error) {
         console.error("Error fetching users:", error);
+        // Trả về mảng rỗng thay vì crash
         return [];
     }
 };
