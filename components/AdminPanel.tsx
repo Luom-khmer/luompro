@@ -12,10 +12,20 @@ import {
     CurrencyDollarIcon,
     PencilSquareIcon,
     ExclamationTriangleIcon,
-    WrenchScrewdriverIcon
+    WrenchScrewdriverIcon,
+    MegaphoneIcon,
+    CheckIcon
 } from '@heroicons/react/24/outline';
 import VisitorCounter from './VisitorCounter';
-import { fetchAllUsers, deleteUserFromFirestore, updateUserCredits, checkAndRepairAdminRole } from '../services/firebaseService';
+import { 
+    fetchAllUsers, 
+    deleteUserFromFirestore, 
+    updateUserCredits, 
+    checkAndRepairAdminRole,
+    getSystemAnnouncement,
+    updateSystemAnnouncement,
+    SystemAnnouncement
+} from '../services/firebaseService';
 
 interface AdminPanelProps {
     currentUser: firebase.User | null;
@@ -23,19 +33,32 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings' | 'notification'>('dashboard');
     
-    // State dữ liệu
+    // State dữ liệu Users
     const [users, setUsers] = useState<any[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isRepairing, setIsRepairing] = useState(false);
 
+    // State dữ liệu Notification
+    const [announceData, setAnnounceData] = useState<SystemAnnouncement>({
+        isActive: true,
+        title: '',
+        pinnedNote: '',
+        content: '',
+        lastUpdated: null
+    });
+    const [isSavingAnnounce, setIsSavingAnnounce] = useState(false);
+
     // Load users khi vào tab Users
     useEffect(() => {
         if (activeTab === 'users') {
             loadUsers();
+        }
+        if (activeTab === 'notification') {
+            loadAnnouncement();
         }
     }, [activeTab]);
 
@@ -50,6 +73,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
             setUsers([]);
         } finally {
             setIsLoadingUsers(false);
+        }
+    };
+
+    const loadAnnouncement = async () => {
+        const data = await getSystemAnnouncement();
+        if (data) {
+            setAnnounceData(data);
+        }
+    };
+
+    const handleSaveAnnouncement = async () => {
+        setIsSavingAnnounce(true);
+        try {
+            await updateSystemAnnouncement(announceData);
+            alert("Đã lưu thông báo thành công!");
+        } catch (e: any) {
+            alert("Lỗi lưu thông báo: " + e.message);
+        } finally {
+            setIsSavingAnnounce(false);
         }
     };
 
@@ -132,6 +174,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === 'users' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                     >
                         <UsersIcon className="w-5 h-5" /> Quản Lý User
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('notification')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === 'notification' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                    >
+                        <MegaphoneIcon className="w-5 h-5" /> Thông Báo
                     </button>
                     <button 
                         onClick={() => setActiveTab('settings')}
@@ -311,6 +359,76 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                     </table>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'notification' && (
+                        <div className="space-y-6 animate-fade-in max-w-2xl mx-auto">
+                            <h3 className="text-xl font-bold text-white mb-4">Quản lý Thông báo hệ thống</h3>
+                            
+                            <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-700 shadow-xl">
+                                <div className="space-y-5">
+                                    {/* Toggle Switch */}
+                                    <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-gray-700">
+                                        <div>
+                                            <label className="text-sm font-bold text-white block">Trạng thái hiển thị</label>
+                                            <p className="text-xs text-gray-500">Bật/Tắt popup khi người dùng vào App</p>
+                                        </div>
+                                        <div 
+                                            className={`relative w-14 h-7 rounded-full cursor-pointer transition-colors ${announceData.isActive ? 'bg-green-600' : 'bg-gray-600'}`}
+                                            onClick={() => setAnnounceData({...announceData, isActive: !announceData.isActive})}
+                                        >
+                                            <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all ${announceData.isActive ? 'left-8' : 'left-1'}`}></div>
+                                        </div>
+                                    </div>
+
+                                    {/* Title */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-400 mb-2">Tiêu đề Header (Màu tím)</label>
+                                        <input 
+                                            type="text" 
+                                            value={announceData.title}
+                                            onChange={(e) => setAnnounceData({...announceData, title: e.target.value})}
+                                            className="w-full bg-[#222] border border-gray-600 rounded p-3 text-white focus:border-purple-500 outline-none"
+                                            placeholder="VD: Thông báo hệ thống"
+                                        />
+                                    </div>
+
+                                    {/* Pinned Note */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-orange-400 mb-2">Ghi chú Ghim (Hộp nâu/cam)</label>
+                                        <div className="relative">
+                                            <textarea 
+                                                value={announceData.pinnedNote}
+                                                onChange={(e) => setAnnounceData({...announceData, pinnedNote: e.target.value})}
+                                                className="w-full bg-[#3f2c22] border border-orange-900/50 rounded p-3 text-orange-100 focus:border-orange-500 outline-none h-24 resize-none"
+                                                placeholder="Nội dung quan trọng cần ghim..."
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Main Content */}
+                                    <div>
+                                        <label className="block text-sm font-bold text-gray-400 mb-2">Nội dung chính</label>
+                                        <textarea 
+                                            value={announceData.content}
+                                            onChange={(e) => setAnnounceData({...announceData, content: e.target.value})}
+                                            className="w-full bg-[#222] border border-gray-600 rounded p-3 text-gray-300 focus:border-purple-500 outline-none h-40"
+                                            placeholder="- Nội dung dòng 1&#10;- Nội dung dòng 2"
+                                        />
+                                    </div>
+
+                                    {/* Save Button */}
+                                    <button 
+                                        onClick={handleSaveAnnouncement}
+                                        disabled={isSavingAnnounce}
+                                        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {isSavingAnnounce ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
+                                        {isSavingAnnounce ? "Đang lưu..." : "Lưu thay đổi"}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     )}
 

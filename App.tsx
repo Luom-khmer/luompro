@@ -16,6 +16,7 @@ import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
+import SystemNotificationModal from './components/SystemNotificationModal';
 
 import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon } from '@heroicons/react/24/outline';
 
@@ -233,13 +234,13 @@ const App: React.FC = () => {
   };
 
   const generateSingleImage = async (file: File, id: string) => {
-      // 1. CHECK CREDITS BEFORE STARTING
+      // 1. CHECK LOGIN
       if (!currentUser) {
           alert("Vui lòng đăng nhập để sử dụng tính năng.");
           return;
       }
 
-      // Calculate Cost
+      // 2. CALCULATE COST
       const provider = conceptSettings.aiProvider || 'gemini';
       let estimatedCost = 1; // Default Gemini Cost
 
@@ -254,6 +255,7 @@ const App: React.FC = () => {
           }
       }
 
+      // 3. CHECK BALANCE (But don't deduct yet)
       if (userCredits < estimatedCost) {
           alert(`Số dư không đủ! Cần ${estimatedCost} credits, bạn đang có ${userCredits}.\nVui lòng liên hệ Admin để nạp thêm.`);
           // Đánh dấu ảnh là lỗi do thiếu tiền
@@ -261,16 +263,7 @@ const App: React.FC = () => {
           return;
       }
 
-      // --- DEDUCT CREDITS FIRST (Reservation) ---
-      // Only deduct if cost is greater than 0
-      if (estimatedCost > 0) {
-          try {
-              await deductUserCredits(currentUser.uid, estimatedCost);
-          } catch (err) {
-              alert("Lỗi hệ thống: Không thể trừ credits. Vui lòng thử lại sau.");
-              return;
-          }
-      }
+      // NO DEDUCTION HERE - WE DEDUCT ON SUCCESS ONLY
 
       setIsImageProcessing(true);
       // Update status to generating
@@ -342,6 +335,16 @@ const App: React.FC = () => {
             url = await generateStyledImage(file, finalSettings);
         }
         
+        // --- SUCCESS LOGIC: DEDUCT CREDITS NOW ---
+        if (estimatedCost > 0) {
+            try {
+                await deductUserCredits(currentUser.uid, estimatedCost);
+            } catch (deductErr) {
+                console.error("Lỗi trừ credits sau khi tạo (Ignored):", deductErr);
+                // Người dùng đã nhận ảnh, lỗi trừ tiền ở đây không nên chặn hiển thị ảnh
+            }
+        }
+
         setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'completed', generatedImageUrl: url } : p));
         
         // Save to gallery
@@ -349,18 +352,13 @@ const App: React.FC = () => {
         await saveImageToGallery(newItem);
         setGalleryItems(prev => [newItem, ...prev]);
 
-        // Success: Credits already deducted at start (if cost > 0).
-
       } catch (e: any) {
-        // --- REFUND CREDITS ON ERROR ---
-        // Only refund if we actually deducted something (cost > 0)
-        if (estimatedCost > 0) {
-            await deductUserCredits(currentUser.uid, -estimatedCost);
-        }
+        // --- ERROR LOGIC ---
+        // Không cần hoàn tiền vì chưa trừ
         
         const errorMessage = e.message || 'Lỗi tạo ảnh';
         setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
-        alert(`Tạo ảnh thất bại: ${errorMessage}. Đã hoàn lại ${estimatedCost} credits.`);
+        alert(`Tạo ảnh thất bại: ${errorMessage}. (Không bị trừ Credits)`);
       } finally {
         setIsImageProcessing(false);
       }
@@ -625,6 +623,9 @@ const App: React.FC = () => {
                 </div>
             )}
         </div>
+
+        {/* System Notification Popup */}
+        <SystemNotificationModal />
 
         <DonationModal isOpen={isDonationModalOpen} onClose={() => setIsDonationModalOpen(false)} />
         {lightboxData && (

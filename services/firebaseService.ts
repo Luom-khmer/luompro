@@ -109,6 +109,39 @@ export const listenToUserRealtime = (uid: string, callback: (data: any) => void)
     });
 };
 
+// --- SYSTEM ANNOUNCEMENT FEATURES ---
+
+export interface SystemAnnouncement {
+    isActive: boolean;
+    title: string;
+    pinnedNote: string;
+    content: string;
+    lastUpdated: any;
+    version?: number;
+}
+
+export const getSystemAnnouncement = async (): Promise<SystemAnnouncement | null> => {
+    if (!db) return null;
+    try {
+        const doc = await db.collection('system').doc('announcement').get();
+        if (doc.exists) {
+            return doc.data() as SystemAnnouncement;
+        }
+        return null;
+    } catch (error) {
+        console.warn("Error fetching announcement:", error);
+        return null;
+    }
+};
+
+export const updateSystemAnnouncement = async (data: Partial<SystemAnnouncement>) => {
+    if (!db) throw new Error("Database not initialized");
+    await db.collection('system').doc('announcement').set({
+        ...data,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+};
+
 // --- ADMIN FEATURES ---
 
 export const fetchAllUsers = async () => {
