@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { User } from 'firebase/auth';
+import firebase from 'firebase/compat/app';
 import { 
     UsersIcon, 
     ChartBarIcon, 
@@ -12,7 +12,7 @@ import {
 import VisitorCounter from './VisitorCounter';
 
 interface AdminPanelProps {
-    currentUser: User | null;
+    currentUser: firebase.User | null;
     gommoCredits: number | null;
 }
 

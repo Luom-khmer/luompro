@@ -1,22 +1,24 @@
 
-import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
+import firebase from "firebase/compat/app";
+import "firebase/compat/auth";
+import "firebase/compat/firestore";
 import { APP_CONFIG } from "../config";
 
 // Initialize variables
-let auth: Auth | undefined;
-let db: Firestore | undefined;
-let googleProvider: GoogleAuthProvider | undefined;
+let auth: firebase.auth.Auth | undefined;
+let db: firebase.firestore.Firestore | undefined;
+let googleProvider: firebase.auth.GoogleAuthProvider | undefined;
 let isFirebaseInitialized = false;
 
 // Initialize Firebase only if config is present to avoid crashes
 try {
     if (APP_CONFIG.FIREBASE && APP_CONFIG.FIREBASE.apiKey && APP_CONFIG.FIREBASE.apiKey.length > 5) {
-        const app = initializeApp(APP_CONFIG.FIREBASE);
-        auth = getAuth(app);
-        db = getFirestore(app); // Khởi tạo Firestore Database
-        googleProvider = new GoogleAuthProvider();
+        if (!firebase.apps.length) {
+            firebase.initializeApp(APP_CONFIG.FIREBASE);
+        }
+        auth = firebase.auth();
+        db = firebase.firestore();
+        googleProvider = new firebase.auth.GoogleAuthProvider();
         isFirebaseInitialized = true;
     }
 } catch (error) {
@@ -31,7 +33,7 @@ export const getFirebaseDB = () => db;
 export const loginWithGoogle = async () => {
     if (!auth || !googleProvider) throw new Error("Firebase chưa được cấu hình hoặc khởi tạo thất bại.");
     try {
-        const result = await signInWithPopup(auth, googleProvider);
+        const result = await auth.signInWithPopup(googleProvider);
         return result.user;
     } catch (error: any) {
         console.error("Login Error:", error);
@@ -42,7 +44,7 @@ export const loginWithGoogle = async () => {
 export const logoutUser = async () => {
     if (!auth) return;
     try {
-        await signOut(auth);
+        await auth.signOut();
     } catch (error) {
         console.error("Logout failed", error);
     }

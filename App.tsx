@@ -6,7 +6,7 @@ import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMod
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
 import { getFirebaseAuth, loginWithGoogle, logoutUser } from './services/firebaseService';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import firebase from 'firebase/compat/app';
 
 // UI Components
 import ControlPanel from './components/ControlPanel';
@@ -65,7 +65,7 @@ const App: React.FC = () => {
   const [isUpdatingCredits, setIsUpdatingCredits] = useState<boolean>(false);
 
   // Auth State
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<firebase.User | null>(null);
 
   // Check if User is Admin
   const isAdmin = React.useMemo(() => {
@@ -117,7 +117,7 @@ const App: React.FC = () => {
     // Init Auth Listener
     const auth = getFirebaseAuth();
     if (auth) {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        const unsubscribe = auth.onAuthStateChanged((user) => {
             setCurrentUser(user);
         });
         return () => unsubscribe();
