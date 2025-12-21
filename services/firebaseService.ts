@@ -47,12 +47,16 @@ const syncUserToFirestore = async (user: firebase.User) => {
             displayName: user.displayName,
             photoURL: user.photoURL,
             lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-            // Giữ nguyên role nếu đã có, nếu chưa thì set theo logic admin
+            // Quan trọng: Set role admin nếu email nằm trong danh sách config
+            // Điều này giúp Firestore Rules (check role) hoạt động chính xác
             role: currentData?.role ? currentData.role : (isAdmin ? 'admin' : 'user')
         };
 
+        if (isAdmin && userData.role !== 'admin') {
+            userData.role = 'admin';
+        }
+
         // Nếu user chưa tồn tại hoặc chưa có trường credits, tặng 10 credits dùng thử
-        // Kiểm tra kỹ undefined để tránh reset khi credits = 0
         if (currentData?.credits === undefined) {
             userData.credits = 10;
         }
@@ -93,7 +97,6 @@ export const logoutUser = async () => {
 // --- USER FEATURES ---
 
 // Lắng nghe thay đổi dữ liệu User (Credits) realtime
-// & TỰ ĐỘNG KHÔI PHỤC DỮ LIỆU NẾU THIẾU
 export const listenToUserRealtime = (uid: string, callback: (data: any) => void) => {
     if (!db) return () => {};
     
@@ -116,13 +119,11 @@ export const listenToUserRealtime = (uid: string, callback: (data: any) => void)
 export const fetchAllUsers = async () => {
     if (!db) return [];
     try {
-        // QUAN TRỌNG: Bỏ orderBy('lastLogin') ở server để tránh lỗi "Missing Index"
-        // Thay vào đó ta lấy toàn bộ list về và sort ở client (JavaScript)
+        // Lấy toàn bộ danh sách users không cần sort tại server để tránh lỗi Index
         const snapshot = await db.collection('users').get();
 
         const users = snapshot.docs.map(doc => {
             const data = doc.data();
-            // Convert Timestamp to readable string if needed
             const lastLoginDate = data.lastLogin?.toDate ? data.lastLogin.toDate().toLocaleString() : 'N/A';
             const timestamp = data.lastLogin?.toMillis ? data.lastLogin.toMillis() : 0;
             
@@ -130,7 +131,7 @@ export const fetchAllUsers = async () => {
                 id: doc.id,
                 ...data,
                 lastLogin: lastLoginDate,
-                _sortTime: timestamp // Dùng để sort
+                _sortTime: timestamp
             };
         });
         
@@ -139,8 +140,8 @@ export const fetchAllUsers = async () => {
 
         return users;
     } catch (error) {
-        console.error("Error fetching users:", error);
-        // Trả về mảng rỗng thay vì crash
+        console.error("Error fetching users (Permission or Network):", error);
+        // Trả về mảng rỗng để UI không bị crash
         return [];
     }
 };

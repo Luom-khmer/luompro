@@ -3,26 +3,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Hàm kiểm tra Admin: So khớp email với danh sách Admin hardcode
-    // Lưu ý: Cần đồng bộ danh sách này với ADMIN_EMAILS trong config.ts
+    // Hàm kiểm tra Admin mạnh mẽ hơn:
+    // 1. Kiểm tra Email trực tiếp (Hardcode)
+    // 2. HOẶC Kiểm tra field 'role' trong document của user đó (Dynamic)
     function isAdmin() {
-      return request.auth != null && 
-        (request.auth.token.email == 'admin@gmail.com' || 
-         request.auth.token.email == 'nguyendinhtien@gmail.com' || 
-         request.auth.token.email == 'luompro@gmail.com' ||
-         request.auth.token.email == 'danhluom68g1@gmail.com');
+      return request.auth != null && (
+        request.auth.token.email in ['admin@gmail.com', 'nguyendinhtien@gmail.com', 'luompro@gmail.com', 'danhluom68g1@gmail.com'] ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
     }
 
-    // Collection "users":
-    // - User thường: Chỉ đọc/ghi document có ID trùng với UID của mình.
-    // - Admin: Đọc/ghi tất cả user.
+    // Rule cho Collection users:
+    // - Admin: Full quyền (thông qua rule match /{document=**} bên dưới hoặc logic tại đây)
+    // - User thường: Chỉ đọc/ghi chính mình.
     match /users/{userId} {
       allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
-    // Các Collection khác (Logs, System Settings, v.v.):
-    // - Chỉ Admin mới được phép truy cập (đọc/ghi).
-    // - Chặn người dùng thường.
+    // Rule bao quát cho tất cả các collection khác (bao gồm cả việc list users nếu rule trên không khớp context list)
+    // Admin được phép truy cập tất cả.
     match /{document=**} {
       allow read, write: if isAdmin();
     }
