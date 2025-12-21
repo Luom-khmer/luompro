@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
-import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages } from './services/gommoService';
+import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo } from './services/gommoService';
 import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
@@ -14,7 +14,7 @@ import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 
-import { PhotoIcon, TrashIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -22,13 +22,13 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     blurAmount: 2.8,
     weather: WeatherOption.NONE,
     lightingEffects: [],
-    preserveSubjectPosition: true,
     preservePose: false,
     preserveComposition: false,
     preserveFocalLength: false,
     preserveAspectRatio: false,
     disableForeground: false,
     originalImageCompatibility: false,
+    preserveSubjectPosition: true,
     keepOriginalOutfit: false,
     enableUpscale: false,
     restorationCustomPrompt: '',
@@ -55,6 +55,9 @@ const App: React.FC = () => {
   // GLOBAL API KEY STATE - Initialize with Config
   const [globalApiKey, setGlobalApiKey] = useState<string>(APP_CONFIG.GEMINI_API_KEY || '');
   const [globalGommoKey, setGlobalGommoKey] = useState<string>(APP_CONFIG.GOMMO_API_KEY || '');
+  
+  // Credit State
+  const [gommoCredits, setGommoCredits] = useState<number | null>(null);
 
   // --- CONCEPT MODE STATE (ONLY) ---
   const [conceptImages, setConceptImages] = useState<ProcessedImage[]>([]);
@@ -91,11 +94,33 @@ const App: React.FC = () => {
     loadGallery();
   }, []);
   
-  // Persist API Key changes
+  // Persist API Key changes & Fetch Credits
   useEffect(() => {
       if (globalApiKey) localStorage.setItem('gemini_api_key', globalApiKey);
-      if (globalGommoKey) localStorage.setItem('gommo_api_key', globalGommoKey);
+      if (globalGommoKey) {
+          localStorage.setItem('gommo_api_key', globalGommoKey);
+          updateGommoCredits();
+      }
   }, [globalApiKey, globalGommoKey]);
+
+  // Helper to fetch credits
+  const updateGommoCredits = async () => {
+      if (!globalGommoKey || globalGommoKey.length < 10) return;
+      try {
+          const data = await fetchGommoUserInfo(globalGommoKey);
+          
+          // Handle actual API structure: balancesInfo.credits_ai
+          if (data.balancesInfo && typeof data.balancesInfo.credits_ai === 'number') {
+              setGommoCredits(data.balancesInfo.credits_ai);
+          } 
+          // Handle possible legacy/wrapper structure
+          else if (data.success?.data?.credits !== undefined) {
+              setGommoCredits(data.success.data.credits);
+          }
+      } catch (e) {
+          console.warn("Failed to fetch credits", e);
+      }
+  };
 
   // --- IMAGE LOGIC ---
   const handleImageUpload = (fileList: FileList | File[]) => {
@@ -185,6 +210,9 @@ const App: React.FC = () => {
              } else {
                  throw new Error("Gommo không trả về URL ảnh.");
              }
+             
+             // Fetch updated credits after successful generation
+             updateGommoCredits();
 
         } else {
             // --- GEMINI WORKFLOW ---
@@ -299,6 +327,15 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
+                {/* Credit Display (Shown whenever credits are successfully fetched) */}
+                {gommoCredits !== null && (
+                   <div className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-900/20 border border-teal-500/30 rounded text-teal-400 text-sm font-bold shadow-sm animate-fade-in whitespace-nowrap" title="Số dư hiện tại">
+                       <CurrencyDollarIcon className="w-4 h-4 text-teal-500" />
+                       <span className="text-white">{gommoCredits.toLocaleString()}</span>
+                       <span className="text-[10px] text-teal-500/70 font-normal">cr</span>
+                   </div>
+                )}
+
                 <button onClick={() => setIsDonationModalOpen(true)} className="text-yellow-500 hover:text-yellow-400 text-sm font-medium flex items-center gap-1 whitespace-nowrap border border-yellow-500/30 px-3 py-1.5 rounded hover:bg-yellow-500/10 transition-colors">
                     ☕ Donate
                 </button>

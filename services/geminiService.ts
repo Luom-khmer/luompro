@@ -95,7 +95,7 @@ const handleGeminiError = (error: any, modelName: string = '') => {
     }
 
     if (msg.includes('400') || msg.includes('invalid_argument')) {
-        return new Error("Lỗi Dữ liệu (400): Ảnh đầu vào không hợp lệ hoặc bị lỗi.");
+        return new Error("Lỗi Dữ liệu (400): Ảnh đầu vào không hợp lệ hoặc model không hỗ trợ tác vụ này.");
     }
 
     if (msg.includes('not found') || msg.includes('404')) {
@@ -392,8 +392,11 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
             `;
         }
 
+        // --- FIXED MODEL FOR ANALYSIS ---
+        // Using 'gemini-3-flash-preview' for Multimodal input (Image) -> Text output.
+        // The previous model 'gemini-2.5-flash-image' was strictly for Image Generation and caused errors.
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-image',
+          model: 'gemini-3-flash-preview',
           contents: { 
             parts: [
               { inlineData: { mimeType, data: base64Data } }, 

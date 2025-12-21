@@ -46,7 +46,7 @@ export interface GenerationSettings {
     preserveComposition: boolean;
     preserveFocalLength: boolean;
     preserveAspectRatio: boolean;
-    disableForeground: boolean;
+    disableForeground: false;
     preserveSubjectPosition: boolean;
     keepOriginalOutfit: boolean;
     enableUpscale: boolean;
@@ -230,4 +230,32 @@ export interface GommoCheckStatusResponse {
 
 export interface GommoImagesResponse {
   data?: any[]; // Keep as generic for now as it's not in the main list
+}
+
+// --- New User Info Interface (Updated to match actual API response) ---
+export interface GommoUserInfoResponse {
+    userInfo?: {
+        id_private?: string;
+        name: string;
+        email?: string;
+        avatar: string;
+        username?: string;
+    };
+    balancesInfo?: {
+        balance: number;
+        credits_ai: number;
+        currency?: string;
+    };
+    videoCount?: number;
+    runtime?: number;
+
+    // Compatibility for other potential structures / Legacy wrappers
+    success?: {
+        data: {
+            credits: number;
+        };
+    };
+    error?: {
+        message: string;
+    };
 }

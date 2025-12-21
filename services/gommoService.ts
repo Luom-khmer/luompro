@@ -5,7 +5,8 @@ import {
     GommoImageGenerationResponse, 
     GommoCreateVideoResponse, 
     GommoCheckStatusResponse, 
-    GommoImagesResponse 
+    GommoImagesResponse,
+    GommoUserInfoResponse
 } from '../types';
 
 const DOMAIN = "aivideoauto.com";
@@ -16,7 +17,8 @@ const ENDPOINTS = {
     CREATE_VIDEO: "https://api.gommo.net/ai/create-video",
     CHECK_VIDEO: "https://api.gommo.net/ai/video",
     UPLOAD_IMAGE: "https://api.gommo.net/ai/image-upload",
-    GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage"
+    GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage",
+    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me"
 };
 
 // Helper to create body matching the requirement: 
@@ -242,6 +244,24 @@ export const generateGommoImage = async (
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
+    }
+};
+
+/**
+ * 6. Get User Info (Credits)
+ */
+export const fetchGommoUserInfo = async (accessToken: string): Promise<GommoUserInfoResponse> => {
+    try {
+        const body = createBody(accessToken, {});
+        const response = await fetch(ENDPOINTS.USER_INFO, {
+            method: 'POST',
+            body: body
+        });
+        return await processResponse(response);
+    } catch (error) {
+        // Suppress generic errors for credit checks to avoid UI noise
+        console.warn("Could not fetch user info:", error);
+        return { error: { message: "Could not fetch" } };
     }
 };
 
