@@ -260,6 +260,14 @@ const App: React.FC = () => {
           return;
       }
 
+      // --- DEDUCT CREDITS FIRST (Reservation) ---
+      try {
+          await deductUserCredits(currentUser.uid, estimatedCost);
+      } catch (err) {
+          alert("Lỗi hệ thống: Không thể trừ credits. Vui lòng thử lại sau.");
+          return;
+      }
+
       setIsImageProcessing(true);
       // Update status to generating
       setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'generating', error: undefined } : p));
@@ -337,12 +345,15 @@ const App: React.FC = () => {
         await saveImageToGallery(newItem);
         setGalleryItems(prev => [newItem, ...prev]);
 
-        // DEDUCT CREDITS AFTER SUCCESS
-        await deductUserCredits(currentUser.uid, estimatedCost);
+        // Success: Credits already deducted at start.
 
       } catch (e: any) {
+        // --- REFUND CREDITS ON ERROR ---
+        await deductUserCredits(currentUser.uid, -estimatedCost);
+        
         const errorMessage = e.message || 'Lỗi tạo ảnh';
         setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
+        alert(`Tạo ảnh thất bại: ${errorMessage}. Đã hoàn lại ${estimatedCost} credits.`);
       } finally {
         setIsImageProcessing(false);
       }
