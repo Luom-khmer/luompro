@@ -10,10 +10,12 @@ import {
     ShieldCheckIcon,
     ArrowPathIcon,
     CurrencyDollarIcon,
-    PencilSquareIcon
+    PencilSquareIcon,
+    ExclamationTriangleIcon,
+    WrenchScrewdriverIcon
 } from '@heroicons/react/24/outline';
 import VisitorCounter from './VisitorCounter';
-import { fetchAllUsers, deleteUserFromFirestore, updateUserCredits } from '../services/firebaseService';
+import { fetchAllUsers, deleteUserFromFirestore, updateUserCredits, checkAndRepairAdminRole } from '../services/firebaseService';
 
 interface AdminPanelProps {
     currentUser: firebase.User | null;
@@ -23,10 +25,12 @@ interface AdminPanelProps {
 const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) => {
     const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings'>('dashboard');
     
-    // State dữ liệu thật
+    // State dữ liệu
     const [users, setUsers] = useState<any[]>([]);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [isRepairing, setIsRepairing] = useState(false);
 
     // Load users khi vào tab Users
     useEffect(() => {
@@ -37,9 +41,29 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
 
     const loadUsers = async () => {
         setIsLoadingUsers(true);
-        const data = await fetchAllUsers();
-        setUsers(data);
-        setIsLoadingUsers(false);
+        setFetchError(null);
+        try {
+            const data = await fetchAllUsers();
+            setUsers(data);
+        } catch (error: any) {
+            setFetchError(error.message);
+            setUsers([]);
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    };
+
+    const handleRepairPermissions = async () => {
+        setIsRepairing(true);
+        try {
+            await checkAndRepairAdminRole();
+            alert("Đã cập nhật quyền Admin thành công! Hệ thống sẽ tải lại danh sách.");
+            await loadUsers(); // Thử tải lại ngay
+        } catch (error: any) {
+            alert("Lỗi cấp quyền: " + error.message);
+        } finally {
+            setIsRepairing(false);
+        }
     };
 
     const handleDeleteUser = async (id: string, email: string) => {
@@ -60,9 +84,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
             if (!isNaN(newCredits) && newCredits >= 0) {
                 try {
                     await updateUserCredits(id, newCredits);
-                    // Cập nhật UI local
                     setUsers(users.map(u => u.id === id ? { ...u, credits: newCredits } : u));
-                    alert("Cập nhật thành công!");
                 } catch (error) {
                     alert("Lỗi cập nhật: " + error);
                 }
@@ -88,9 +110,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                     </h2>
                     <p className="text-sm text-gray-500">Xin chào, {currentUser?.displayName || currentUser?.email}</p>
                 </div>
-                <div className="bg-red-900/20 border border-red-500/30 px-4 py-2 rounded-lg flex flex-col items-end">
-                    <span className="text-red-400 font-bold text-sm">SUPER ADMIN</span>
-                    <span className="text-[10px] text-gray-500">Full Access Granted</span>
+                <div className="flex flex-col items-end gap-1">
+                     <div className="bg-red-900/20 border border-red-500/30 px-4 py-2 rounded-lg text-center">
+                        <span className="text-red-400 font-bold text-sm block">SUPER ADMIN</span>
+                     </div>
+                     <span className="text-[10px] text-gray-500">{currentUser?.email}</span>
                 </div>
             </div>
 
@@ -129,10 +153,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                         <div className="p-3 bg-blue-900/30 rounded-lg">
                                             <UsersIcon className="w-6 h-6 text-blue-400" />
                                         </div>
-                                        <span className="text-xs font-bold text-gray-500 uppercase">Tổng User (Database)</span>
+                                        <span className="text-xs font-bold text-gray-500 uppercase">Tổng User</span>
                                     </div>
-                                    <h4 className="text-3xl font-bold text-white">{users.length > 0 ? users.length : '...'}</h4>
-                                    <p className="text-sm text-gray-500 mt-1">Lần cập nhật cuối: Vừa xong</p>
+                                    <h4 className="text-3xl font-bold text-white">{users.length > 0 ? users.length : (isLoadingUsers ? '...' : '-')}</h4>
+                                    <p className="text-sm text-gray-500 mt-1">Trong Database</p>
                                 </div>
 
                                 {/* Stat Card 2 */}
@@ -170,7 +194,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                     {isLoadingUsers && <ArrowPathIcon className="w-5 h-5 animate-spin text-gray-500" />}
                                 </h3>
                                 <div className="flex gap-2">
-                                    <button onClick={loadUsers} className="p-2 bg-gray-800 rounded hover:bg-gray-700 border border-gray-600">
+                                    <button onClick={loadUsers} className="p-2 bg-gray-800 rounded hover:bg-gray-700 border border-gray-600" title="Tải lại">
                                         <ArrowPathIcon className={`w-5 h-5 text-gray-400 ${isLoadingUsers ? 'animate-spin' : ''}`} />
                                     </button>
                                     <input 
@@ -183,80 +207,110 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                 </div>
                             </div>
                             
-                            <div className="bg-[#1a1a1a] border border-gray-700 rounded-xl overflow-hidden shadow-lg">
-                                <table className="w-full text-left border-collapse">
-                                    <thead>
-                                        <tr className="bg-[#222] text-gray-400 text-xs uppercase border-b border-gray-700">
-                                            <th className="p-4 font-semibold">User</th>
-                                            <th className="p-4 font-semibold">Email</th>
-                                            <th className="p-4 font-semibold text-center">Credits</th>
-                                            <th className="p-4 font-semibold">Vai trò</th>
-                                            <th className="p-4 font-semibold">Đăng nhập cuối</th>
-                                            <th className="p-4 font-semibold text-right">Hành động</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-800">
-                                        {filteredUsers.length === 0 ? (
-                                            <tr>
-                                                <td colSpan={6} className="p-8 text-center text-gray-500">
-                                                    {isLoadingUsers ? 'Đang tải dữ liệu từ Firestore...' : 'Không tìm thấy user nào.'}
-                                                </td>
+                            {/* ERROR DISPLAY & FIX BUTTON */}
+                            {fetchError && (
+                                <div className="bg-red-900/20 border border-red-500/50 rounded-xl p-6 mb-6 flex flex-col gap-4 items-start">
+                                    <div className="flex items-center gap-3">
+                                        <ExclamationTriangleIcon className="w-8 h-8 text-red-500" />
+                                        <div>
+                                            <h4 className="text-red-400 font-bold text-lg">Không thể lấy danh sách User</h4>
+                                            <p className="text-gray-400 text-sm mt-1">{fetchError}</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 w-full bg-black/30 p-4 rounded text-xs font-mono text-gray-400">
+                                        <p>Nguyên nhân có thể:</p>
+                                        <ul className="list-disc pl-5">
+                                            <li>Tài khoản của bạn chưa được cấp quyền 'admin' trong Database.</li>
+                                            <li>Rules Firestore chặn truy cập.</li>
+                                        </ul>
+                                    </div>
+                                    <button 
+                                        onClick={handleRepairPermissions}
+                                        disabled={isRepairing}
+                                        className="flex items-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-bold rounded-lg shadow-lg transition-all"
+                                    >
+                                        {isRepairing ? <ArrowPathIcon className="w-5 h-5 animate-spin"/> : <WrenchScrewdriverIcon className="w-5 h-5" />}
+                                        {isRepairing ? "Đang xử lý..." : "Cấp quyền Admin & Tải lại"}
+                                    </button>
+                                </div>
+                            )}
+
+                            {!fetchError && (
+                                <div className="bg-[#1a1a1a] border border-gray-700 rounded-xl overflow-hidden shadow-lg">
+                                    <table className="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr className="bg-[#222] text-gray-400 text-xs uppercase border-b border-gray-700">
+                                                <th className="p-4 font-semibold">User</th>
+                                                <th className="p-4 font-semibold">Email</th>
+                                                <th className="p-4 font-semibold text-center">Credits</th>
+                                                <th className="p-4 font-semibold">Vai trò</th>
+                                                <th className="p-4 font-semibold">Đăng nhập cuối</th>
+                                                <th className="p-4 font-semibold text-right">Hành động</th>
                                             </tr>
-                                        ) : (
-                                            filteredUsers.map((user) => (
-                                                <tr key={user.id} className="hover:bg-[#252525] transition-colors text-sm">
-                                                    <td className="p-4 font-medium text-white flex items-center gap-3">
-                                                        {user.photoURL ? (
-                                                            <img src={user.photoURL} className="w-8 h-8 rounded-full border border-gray-600" alt="" />
-                                                        ) : (
-                                                            <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
-                                                                {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
-                                                            </div>
-                                                        )}
-                                                        <div className="flex flex-col">
-                                                            <span>{user.displayName || 'No Name'}</span>
-                                                            <span className="text-[10px] text-gray-500 font-mono">{user.uid.slice(0, 8)}...</span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-4 text-gray-300">{user.email}</td>
-                                                    <td className="p-4 text-center">
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-bold ${user.credits > 0 ? 'text-green-400 bg-green-900/20 border border-green-500/30' : 'text-red-400 bg-red-900/20 border border-red-500/30'}`}>
-                                                            {user.credits ?? 0}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4">
-                                                        <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
-                                                            user.role === 'admin' ? 'bg-red-900/30 text-red-400 border border-red-500/30' :
-                                                            'bg-gray-800 text-gray-400'
-                                                        }`}>
-                                                            {user.role || 'user'}
-                                                        </span>
-                                                    </td>
-                                                    <td className="p-4 text-gray-400">{user.lastLogin}</td>
-                                                    <td className="p-4 text-right flex items-center justify-end gap-2">
-                                                        <button
-                                                            onClick={() => handleEditCredits(user.id, user.credits || 0, user.displayName || user.email)}
-                                                            className="text-gray-400 hover:text-green-400 transition-colors p-2 rounded hover:bg-green-900/20"
-                                                            title="Cộng/Trừ Credits"
-                                                        >
-                                                            <PencilSquareIcon className="w-5 h-5" />
-                                                        </button>
-                                                        {user.role !== 'admin' && (
-                                                            <button 
-                                                                onClick={() => handleDeleteUser(user.id, user.email)}
-                                                                className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded hover:bg-red-900/20"
-                                                                title="Xóa dữ liệu user này"
-                                                            >
-                                                                <TrashIcon className="w-5 h-5" />
-                                                            </button>
-                                                        )}
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-800">
+                                            {filteredUsers.length === 0 ? (
+                                                <tr>
+                                                    <td colSpan={6} className="p-8 text-center text-gray-500">
+                                                        {isLoadingUsers ? 'Đang tải dữ liệu...' : 'Không tìm thấy user nào (hoặc Database trống).'}
                                                     </td>
                                                 </tr>
-                                            ))
-                                        )}
-                                    </tbody>
-                                </table>
-                            </div>
+                                            ) : (
+                                                filteredUsers.map((user) => (
+                                                    <tr key={user.id} className="hover:bg-[#252525] transition-colors text-sm">
+                                                        <td className="p-4 font-medium text-white flex items-center gap-3">
+                                                            {user.photoURL ? (
+                                                                <img src={user.photoURL} className="w-8 h-8 rounded-full border border-gray-600" alt="" />
+                                                            ) : (
+                                                                <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-300">
+                                                                    {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex flex-col">
+                                                                <span>{user.displayName || 'No Name'}</span>
+                                                                <span className="text-[10px] text-gray-500 font-mono">{user.uid.slice(0, 8)}...</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-4 text-gray-300">{user.email}</td>
+                                                        <td className="p-4 text-center">
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded text-sm font-bold ${user.credits > 0 ? 'text-green-400 bg-green-900/20 border border-green-500/30' : 'text-red-400 bg-red-900/20 border border-red-500/30'}`}>
+                                                                {user.credits ?? 0}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4">
+                                                            <span className={`px-2 py-1 rounded text-xs font-bold uppercase ${
+                                                                user.role === 'admin' ? 'bg-red-900/30 text-red-400 border border-red-500/30' :
+                                                                'bg-gray-800 text-gray-400'
+                                                            }`}>
+                                                                {user.role || 'user'}
+                                                            </span>
+                                                        </td>
+                                                        <td className="p-4 text-gray-400">{user.lastLogin}</td>
+                                                        <td className="p-4 text-right flex items-center justify-end gap-2">
+                                                            <button
+                                                                onClick={() => handleEditCredits(user.id, user.credits || 0, user.displayName || user.email)}
+                                                                className="text-gray-400 hover:text-green-400 transition-colors p-2 rounded hover:bg-green-900/20"
+                                                                title="Cộng/Trừ Credits"
+                                                            >
+                                                                <PencilSquareIcon className="w-5 h-5" />
+                                                            </button>
+                                                            {user.role !== 'admin' && (
+                                                                <button 
+                                                                    onClick={() => handleDeleteUser(user.id, user.email)}
+                                                                    className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded hover:bg-red-900/20"
+                                                                    title="Xóa dữ liệu user này"
+                                                                >
+                                                                    <TrashIcon className="w-5 h-5" />
+                                                                </button>
+                                                            )}
+                                                        </td>
+                                                    </tr>
+                                                ))
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -272,8 +326,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                             <span className="text-green-400 font-bold">Cloud Firestore: Connected</span>
                                         </div>
                                     </div>
-                                    <div className="p-4 bg-blue-900/20 border border-blue-700/30 rounded-lg text-blue-400 text-sm">
-                                        <strong>Lưu ý:</strong> Dữ liệu User được tự động đồng bộ mỗi khi người dùng đăng nhập Google thành công. Admin có thể nạp Credits trực tiếp tại tab Quản lý User.
+                                    <div className="flex items-center gap-2">
+                                         <button onClick={handleRepairPermissions} className="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded border border-gray-600 text-sm">
+                                            Đồng bộ quyền Admin thủ công
+                                         </button>
                                     </div>
                                 </div>
                              </div>
