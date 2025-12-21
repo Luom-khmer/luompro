@@ -16,6 +16,7 @@ interface ControlPanelProps {
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
   isAdmin?: boolean;
+  onModelsLoaded?: (models: GommoModel[]) => void;
 }
 
 // Giá trị mặc định để reset
@@ -60,7 +61,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onSelectFromGallery,
   onSyncGallery,
   viewMode,
-  isAdmin = false
+  isAdmin = false,
+  onModelsLoaded
 }) => {
   
   // Tab State
@@ -159,6 +161,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           if (models.length > 0) {
               setGommoModelsList(models);
               setGommoConnected(true);
+              if (onModelsLoaded) onModelsLoaded(models); // Pass models up
+
               const currentExists = models.find(m => m.model === settings.gommoModel);
               if (!currentExists && models.length > 0) {
                   onSettingsChange({ gommoModel: models[0].model });

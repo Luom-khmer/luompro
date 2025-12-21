@@ -71,6 +71,10 @@ const App: React.FC = () => {
   // Cached Gommo Models to check prices
   const [gommoModelsCache, setGommoModelsCache] = useState<GommoModel[]>([]);
 
+  const handleModelsLoaded = (models: GommoModel[]) => {
+     setGommoModelsCache(models);
+  };
+
   // Check if User is Admin
   const isAdmin = React.useMemo(() => {
      if (!currentUser || !currentUser.email) return false;
@@ -245,7 +249,7 @@ const App: React.FC = () => {
           if (modelInfo && modelInfo.price) {
               estimatedCost = modelInfo.price;
           } else {
-              estimatedCost = 10; // Fallback cost for Gommo if unknown
+              estimatedCost = 4; // Fallback cost for Gommo if unknown
           }
       }
 
@@ -597,6 +601,7 @@ const App: React.FC = () => {
                             viewMode={'concept'}
                             setViewMode={() => {}}
                             isAdmin={isAdmin}
+                            onModelsLoaded={handleModelsLoaded}
                         />
                     </aside>
                 </div>
