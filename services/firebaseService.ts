@@ -30,35 +30,46 @@ export const getFirebaseAuth = () => auth;
 // Export Database instance for usage in other components
 export const getFirebaseDB = () => db;
 
+// --- CORE FUNCTION: SYNC USER TO FIRESTORE ---
+// Hàm này đảm bảo thông tin user luôn được lưu vào DB
+const syncUserToFirestore = async (user: firebase.User) => {
+    if (!db) return;
+    try {
+        const isAdmin = (APP_CONFIG.ADMIN_EMAILS || []).includes(user.email || '');
+        const userRef = db.collection('users').doc(user.uid);
+        
+        const docSnap = await userRef.get();
+        
+        const userData: any = {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
+            // Giữ nguyên role nếu đã có, nếu chưa thì set theo logic admin
+            role: docSnap.exists && docSnap.data()?.role ? docSnap.data()?.role : (isAdmin ? 'admin' : 'user')
+        };
+
+        // Nếu user chưa tồn tại hoặc chưa có trường credits, tặng 10 credits dùng thử
+        if (!docSnap.exists || docSnap.data()?.credits === undefined) {
+            userData.credits = docSnap.exists ? (docSnap.data()?.credits ?? 10) : 10;
+        }
+
+        await userRef.set(userData, { merge: true });
+        console.log("User synced to Firestore:", user.email);
+    } catch (error) {
+        console.error("Error syncing user to Firestore:", error);
+    }
+};
+
 export const loginWithGoogle = async () => {
     if (!auth || !googleProvider || !db) throw new Error("Firebase chưa được cấu hình hoặc khởi tạo thất bại.");
     try {
         const result = await auth.signInWithPopup(googleProvider);
         const user = result.user;
         
-        // --- SYNC USER TO FIRESTORE ---
         if (user) {
-            const isAdmin = (APP_CONFIG.ADMIN_EMAILS || []).includes(user.email || '');
-            const userRef = db.collection('users').doc(user.uid);
-            
-            // Kiểm tra xem user đã tồn tại chưa để không reset credits nếu đã có
-            const docSnap = await userRef.get();
-            
-            const userData: any = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-                lastLogin: firebase.firestore.FieldValue.serverTimestamp(),
-                role: isAdmin ? 'admin' : 'user'
-            };
-
-            // Nếu user chưa tồn tại hoặc chưa có trường credits, tặng 10 credits dùng thử
-            if (!docSnap.exists || docSnap.data()?.credits === undefined) {
-                userData.credits = 10;
-            }
-
-            await userRef.set(userData, { merge: true });
+            await syncUserToFirestore(user);
         }
         
         return user;
@@ -80,11 +91,20 @@ export const logoutUser = async () => {
 // --- USER FEATURES ---
 
 // Lắng nghe thay đổi dữ liệu User (Credits) realtime
+// & TỰ ĐỘNG KHÔI PHỤC DỮ LIỆU NẾU THIẾU
 export const listenToUserRealtime = (uid: string, callback: (data: any) => void) => {
     if (!db) return () => {};
+    
     return db.collection('users').doc(uid).onSnapshot((doc) => {
         if (doc.exists) {
             callback(doc.data());
+        } else {
+            // Self-healing: Nếu user đã Auth nhưng không có Docs trong DB -> Tạo ngay
+            if (auth && auth.currentUser && auth.currentUser.uid === uid) {
+                console.warn("User authenticated but missing in DB. Auto-creating...");
+                syncUserToFirestore(auth.currentUser);
+            }
+            callback({ credits: 0 });
         }
     });
 };
@@ -94,7 +114,17 @@ export const listenToUserRealtime = (uid: string, callback: (data: any) => void)
 export const fetchAllUsers = async () => {
     if (!db) return [];
     try {
-        const snapshot = await db.collection('users').orderBy('lastLogin', 'desc').get();
+        // Lấy tất cả user. 
+        // Lưu ý: Nếu database mới chưa index trường lastLogin, việc orderBy có thể gây lỗi hoặc trả về rỗng.
+        // Ta sẽ thử lấy không sort trước nếu sort thất bại, hoặc bỏ sort để đảm bảo hiện đủ data.
+        let snapshot;
+        try {
+            snapshot = await db.collection('users').orderBy('lastLogin', 'desc').get();
+        } catch (e) {
+            console.warn("Sorting failed (missing index?), fetching unsorted list.", e);
+            snapshot = await db.collection('users').get();
+        }
+
         return snapshot.docs.map(doc => {
             const data = doc.data();
             // Convert Timestamp to readable string if needed
