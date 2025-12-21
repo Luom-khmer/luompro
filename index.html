@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    
+    <!-- SEO & Sharing Tags -->
+    <title>LUOM PRO TOOL AI - Công Cụ Sáng Tạo Đa Năng</title>
+    <meta name="description" content="Công cụ AI tổng hợp: Phục chế ảnh cũ, Thay trang phục, Tạo Concept Studio, Giọng đọc AI & Dịch thuật không giới hạn. Tích hợp Google Gemini & Gommo AI." />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://luom-pro-tool-ai.vercel.app/" />
+    <meta property="og:title" content="LUOM PRO TOOL AI - Sáng Tạo Không Giới Hạn" />
+    <meta property="og:description" content="Siêu công cụ AI: Phục chế ảnh, Thay đồ, Fake Concept và Giọng đọc AI." />
+    <meta property="og:image" content="https://i.imgur.com/8YjW6Xq.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="LUOM PRO TOOL AI" />
+    <meta property="twitter:description" content="Công cụ AI All-in-One: Ảnh & Giọng nói." />
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #0f1012;
+        color: #e5e7eb;
+        overflow-x: hidden;
+      }
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #18181b; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #3f3f46; 
+        border-radius: 3px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #ef4444; 
+      }
+
+      @keyframes neon-pulse {
+        0%, 100% {
+          box-shadow: 0 0 5px rgba(239, 68, 68, 0.2), 0 0 10px rgba(239, 68, 68, 0.1);
+        }
+        50% {
+          box-shadow: 0 0 15px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.3);
+        }
+      }
+      
+      .neon-border {
+        box-shadow: 0 0 5px #ef4444, inset 0 0 10px rgba(239, 68, 68, 0.1);
+        border: 1px solid #ef4444;
+      }
+
+      .glowing-textarea:focus {
+        animation: neon-pulse 2s infinite;
+        border-color: #ef4444;
+        outline: none;
+      }
+
+      .neon-text-glow {
+        text-shadow: 0 0 5px rgba(239, 68, 68, 0.8), 0 0 15px rgba(239, 68, 68, 0.5), 0 0 20px rgba(239, 68, 68, 0.3);
+      }
+
+      @keyframes fade-in-up {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      
+      .animate-fade-in {
+        animation: fade-in-up 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      }
+      
+      /* Mobile optimization prevents bounce */
+      html {
+        height: 100%;
+        overflow: hidden; 
+      }
+      body {
+        height: 100%;
+        overflow: auto;
+      }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "@heroicons/react/": "https://esm.sh/@heroicons/react@^2.2.0/",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
