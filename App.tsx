@@ -492,8 +492,8 @@ const App: React.FC = () => {
                     </button>
                 )}
 
-                {/* Credit Display */}
-                {gommoCredits !== null && (
+                {/* Credit Display - Only show for Admin */}
+                {isAdmin && gommoCredits !== null && (
                    <button 
                         onClick={() => updateGommoCredits(false)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-900/20 border border-teal-500/30 rounded text-teal-400 text-sm font-bold shadow-sm animate-fade-in whitespace-nowrap hover:bg-teal-900/40 transition-colors focus:outline-none" 
@@ -596,6 +596,7 @@ const App: React.FC = () => {
                             onSyncGallery={handleSyncGommoGallery}
                             viewMode={'concept'}
                             setViewMode={() => {}}
+                            isAdmin={isAdmin}
                         />
                     </aside>
                 </div>

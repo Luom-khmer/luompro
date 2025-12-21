@@ -15,6 +15,7 @@ interface ControlPanelProps {
   onSyncGallery?: () => void;
   viewMode: ViewMode;
   setViewMode: (mode: ViewMode) => void;
+  isAdmin?: boolean;
 }
 
 // Giá trị mặc định để reset
@@ -58,7 +59,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   galleryItems,
   onSelectFromGallery,
   onSyncGallery,
-  viewMode
+  viewMode,
+  isAdmin = false
 }) => {
   
   // Tab State
@@ -389,31 +391,33 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                {keyError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {keyError}</p>}
            </div>
 
-           {/* Section 2: Gommo / Aivideoauto Token */}
-           <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
-                <div className="p-4 border-b border-gray-800/50 bg-black/20">
-                     <div className="flex items-center gap-2 mb-1">
-                         <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
-                         <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token</h3>
-                         {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
-                     </div>
-                </div>
-                <div className="p-4">
-                     <div className="flex flex-col gap-3">
-                          <div className="relative">
-                              <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
-                              {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
-                          </div>
-                          {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
-                          <div className="flex flex-col gap-2">
-                              <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
-                                  {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
-                                  {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
-                              </button>
-                          </div>
-                     </div>
-                </div>
-           </div>
+           {/* Section 2: Gommo / Aivideoauto Token - ONLY VISIBLE TO ADMIN */}
+           {isAdmin && (
+               <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
+                    <div className="p-4 border-b border-gray-800/50 bg-black/20">
+                         <div className="flex items-center gap-2 mb-1">
+                             <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
+                             <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token</h3>
+                             {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
+                         </div>
+                    </div>
+                    <div className="p-4">
+                         <div className="flex flex-col gap-3">
+                              <div className="relative">
+                                  <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
+                                  {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
+                              </div>
+                              {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
+                              <div className="flex flex-col gap-2">
+                                  <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
+                                      {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
+                                      {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
+                                  </button>
+                              </div>
+                         </div>
+                    </div>
+               </div>
+           )}
       </div>
   );
 
