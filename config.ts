@@ -28,6 +28,7 @@ export const APP_CONFIG = {
     ADMIN_EMAILS: [
         "admin@gmail.com", 
         "nguyendinhtien@gmail.com",
-        "luompro@gmail.com" 
+        "luompro@gmail.com",
+        "danhluom68g1@gmail.com"
     ]
 };

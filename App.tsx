@@ -1,11 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
-import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo } from './services/gommoService';
-import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode } from './types';
+import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels } from './services/gommoService';
+import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
-import { getFirebaseAuth, loginWithGoogle, logoutUser } from './services/firebaseService';
+import { getFirebaseAuth, loginWithGoogle, logoutUser, listenToUserRealtime, deductUserCredits } from './services/firebaseService';
 import firebase from 'firebase/compat/app';
 
 // UI Components
@@ -17,7 +17,7 @@ import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
 
-import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -63,9 +63,13 @@ const App: React.FC = () => {
   // Credit State
   const [gommoCredits, setGommoCredits] = useState<number | null>(null);
   const [isUpdatingCredits, setIsUpdatingCredits] = useState<boolean>(false);
-
-  // Auth State
+  
+  // User & Local App Credits State
   const [currentUser, setCurrentUser] = useState<firebase.User | null>(null);
+  const [userCredits, setUserCredits] = useState<number>(0);
+
+  // Cached Gommo Models to check prices
+  const [gommoModelsCache, setGommoModelsCache] = useState<GommoModel[]>([]);
 
   // Check if User is Admin
   const isAdmin = React.useMemo(() => {
@@ -114,13 +118,26 @@ const App: React.FC = () => {
     };
     loadGallery();
 
-    // Init Auth Listener
+    // Init Auth Listener & Realtime Credit Listener
     const auth = getFirebaseAuth();
     if (auth) {
-        const unsubscribe = auth.onAuthStateChanged((user) => {
+        const unsubscribeAuth = auth.onAuthStateChanged((user) => {
             setCurrentUser(user);
+            if (user) {
+                // Subscribe to user credits
+                const unsubscribeFirestore = listenToUserRealtime(user.uid, (data) => {
+                     if (data && typeof data.credits === 'number') {
+                         setUserCredits(data.credits);
+                     } else {
+                         setUserCredits(0);
+                     }
+                });
+                return () => unsubscribeFirestore();
+            } else {
+                setUserCredits(0);
+            }
         });
-        return () => unsubscribe();
+        return () => unsubscribeAuth();
     }
   }, []);
   
@@ -132,6 +149,8 @@ const App: React.FC = () => {
           
           // Initial fetch
           updateGommoCredits();
+          // Fetch models to know prices
+          fetchModelsForPricing();
 
           // Poll every 15 seconds to keep credits updated (auto update on top-up)
           const interval = setInterval(() => {
@@ -149,13 +168,9 @@ const App: React.FC = () => {
       if (!silent) setIsUpdatingCredits(true);
       try {
           const data = await fetchGommoUserInfo(globalGommoKey);
-          
-          // Handle actual API structure: balancesInfo.credits_ai
           if (data.balancesInfo && typeof data.balancesInfo.credits_ai === 'number') {
               setGommoCredits(data.balancesInfo.credits_ai);
-          } 
-          // Handle possible legacy/wrapper structure
-          else if (data.success?.data?.credits !== undefined) {
+          } else if (data.success?.data?.credits !== undefined) {
               setGommoCredits(data.success.data.credits);
           }
       } catch (e) {
@@ -164,6 +179,20 @@ const App: React.FC = () => {
           if (!silent) setIsUpdatingCredits(false);
       }
   };
+  
+  const fetchModelsForPricing = async () => {
+      if (!globalGommoKey) return;
+      try {
+          const response = await fetchGommoModels(globalGommoKey, 'image');
+           let models: GommoModel[] = [];
+          if (response?.success?.data && Array.isArray(response.success.data)) {
+              models = response.success.data;
+          } else if (response?.data && Array.isArray(response.data)) {
+              models = response.data;
+          }
+          setGommoModelsCache(models);
+      } catch (e) { console.warn("Pricing fetch failed", e); }
+  }
 
   const handleLogin = async () => {
       try {
@@ -200,6 +229,33 @@ const App: React.FC = () => {
   };
 
   const generateSingleImage = async (file: File, id: string) => {
+      // 1. CHECK CREDITS BEFORE STARTING
+      if (!currentUser) {
+          alert("Vui lòng đăng nhập để sử dụng tính năng.");
+          return;
+      }
+
+      // Calculate Cost
+      const provider = conceptSettings.aiProvider || 'gemini';
+      let estimatedCost = 1; // Default Gemini Cost
+
+      if (provider === 'gommo') {
+          const modelId = conceptSettings.gommoModel || 'google_image_gen_banana_pro';
+          const modelInfo = gommoModelsCache.find(m => m.model === modelId);
+          if (modelInfo && modelInfo.price) {
+              estimatedCost = modelInfo.price;
+          } else {
+              estimatedCost = 10; // Fallback cost for Gommo if unknown
+          }
+      }
+
+      if (userCredits < estimatedCost) {
+          alert(`Số dư không đủ! Cần ${estimatedCost} credits, bạn đang có ${userCredits}.\nVui lòng liên hệ Admin để nạp thêm.`);
+          // Đánh dấu ảnh là lỗi do thiếu tiền
+          setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: 'Không đủ Credits' } : p));
+          return;
+      }
+
       setIsImageProcessing(true);
       // Update status to generating
       setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'generating', error: undefined } : p));
@@ -213,9 +269,6 @@ const App: React.FC = () => {
             apiKey: globalApiKey,
             gommoApiKey: globalGommoKey
         };
-
-        // CHECK PROVIDER: GOMMO VS GEMINI
-        const provider = finalSettings.aiProvider || 'gemini';
         
         if (provider === 'gommo') {
              // --- GOMMO WORKFLOW ---
@@ -229,7 +282,6 @@ const App: React.FC = () => {
              let prompt = finalSettings.userPrompt || "Enhance image";
              
              // Map Aspect Ratio from Settings to Gommo Format
-             // Logic: Replace ':' with '_' (e.g., '16:9' -> '16_9')
              let gommoRatio = '1_1';
              if (finalSettings.aspectRatio) {
                  const raw = finalSettings.aspectRatio.replace(/\s*•.*/, ''); 
@@ -240,7 +292,6 @@ const App: React.FC = () => {
                  }
              }
 
-             // Map Resolution (Normalize to lowercase, e.g. "1K" -> "1k")
              let gommoResolution = (finalSettings.imageSize || '1k').toLowerCase();
              
              let mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
@@ -263,13 +314,11 @@ const App: React.FC = () => {
              if (genRes.success && genRes.success.imageInfo && genRes.success.imageInfo.url) {
                  url = genRes.success.imageInfo.url;
              } else if (genRes.imageInfo?.url) {
-                 // Fallback to flattened if response varies
                  url = genRes.imageInfo.url;
              } else {
                  throw new Error("Gommo không trả về URL ảnh.");
              }
              
-             // Fetch updated credits after successful generation
              updateGommoCredits();
 
         } else {
@@ -283,6 +332,9 @@ const App: React.FC = () => {
         const newItem: StoredImage = { id: crypto.randomUUID(), url, timestamp: Date.now() };
         await saveImageToGallery(newItem);
         setGalleryItems(prev => [newItem, ...prev]);
+
+        // DEDUCT CREDITS AFTER SUCCESS
+        await deductUserCredits(currentUser.uid, estimatedCost);
 
       } catch (e: any) {
         const errorMessage = e.message || 'Lỗi tạo ảnh';
@@ -411,16 +463,24 @@ const App: React.FC = () => {
 
                 {/* LOGIN / USER SECTION */}
                 {currentUser ? (
-                    <div className="flex items-center gap-2 mr-2">
-                        {currentUser.photoURL ? (
-                            <img src={currentUser.photoURL} alt="User" className="w-7 h-7 rounded-full border border-gray-600" />
-                        ) : (
-                            <UserCircleIcon className="w-7 h-7 text-gray-400" />
-                        )}
-                        <span className="hidden xl:inline text-xs font-bold text-gray-300 truncate max-w-[100px]">{currentUser.displayName}</span>
-                        <button onClick={handleLogout} title="Đăng xuất" className="text-gray-500 hover:text-red-400 transition-colors">
-                            <ArrowRightOnRectangleIcon className="w-5 h-5" />
-                        </button>
+                    <div className="flex items-center gap-3 mr-2">
+                        {/* USER WALLET DISPLAY */}
+                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-800/50 border border-gray-600 rounded-full text-sm font-bold shadow-inner" title="Số dư App">
+                            <WalletIcon className={`w-4 h-4 ${userCredits > 0 ? 'text-green-400' : 'text-red-400'}`} />
+                            <span className={userCredits > 0 ? 'text-green-400' : 'text-red-400'}>{userCredits.toLocaleString()}</span>
+                         </div>
+
+                        <div className="flex items-center gap-2">
+                             {currentUser.photoURL ? (
+                                <img src={currentUser.photoURL} alt="User" className="w-7 h-7 rounded-full border border-gray-600" />
+                            ) : (
+                                <UserCircleIcon className="w-7 h-7 text-gray-400" />
+                            )}
+                            <span className="hidden xl:inline text-xs font-bold text-gray-300 truncate max-w-[100px]">{currentUser.displayName}</span>
+                            <button onClick={handleLogout} title="Đăng xuất" className="text-gray-500 hover:text-red-400 transition-colors">
+                                <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                            </button>
+                        </div>
                     </div>
                 ) : (
                     <button 
@@ -437,7 +497,7 @@ const App: React.FC = () => {
                    <button 
                         onClick={() => updateGommoCredits(false)}
                         className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-900/20 border border-teal-500/30 rounded text-teal-400 text-sm font-bold shadow-sm animate-fade-in whitespace-nowrap hover:bg-teal-900/40 transition-colors focus:outline-none" 
-                        title="Số dư hiện tại - Nhấn để cập nhật"
+                        title="Số dư Gommo API - Nhấn để cập nhật"
                    >
                        {isUpdatingCredits ? (
                            <ArrowPathIcon className="w-4 h-4 text-teal-500 animate-spin" />
@@ -445,7 +505,7 @@ const App: React.FC = () => {
                            <CurrencyDollarIcon className="w-4 h-4 text-teal-500" />
                        )}
                        <span className="text-white">{gommoCredits.toLocaleString()}</span>
-                       <span className="text-[10px] text-teal-500/70 font-normal">cr</span>
+                       <span className="text-[10px] text-teal-500/70 font-normal">api</span>
                    </button>
                 )}
 
