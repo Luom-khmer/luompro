@@ -399,10 +399,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                      </div>
                 </div>
                 <div className="p-4">
-                     <div className="mb-4 bg-teal-900/10 p-3 rounded border border-teal-500/20 text-xs text-teal-300">
-                         <p className="flex items-center gap-1 mb-1 font-semibold text-teal-200"><ExclamationCircleIcon className="w-4 h-4" /> Lấy Token của bạn:</p>
-                         <a href="https://aivideoauto.com/pages/account/apikeys" target="_blank" rel="noreferrer" className="text-teal-400 hover:text-white underline flex items-center gap-1 break-all bg-black/20 p-1.5 rounded">https://aivideoauto.com/pages/account/apikeys <LinkIcon className="w-3 h-3"/></a>
-                     </div>
                      <div className="flex flex-col gap-3">
                           <div className="relative">
                               <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>

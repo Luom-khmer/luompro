@@ -5,6 +5,8 @@ import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGo
 import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
+import { getFirebaseAuth, loginWithGoogle, logoutUser } from './services/firebaseService';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 // UI Components
 import ControlPanel from './components/ControlPanel';
@@ -14,7 +16,7 @@ import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 
-import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -60,6 +62,9 @@ const App: React.FC = () => {
   const [gommoCredits, setGommoCredits] = useState<number | null>(null);
   const [isUpdatingCredits, setIsUpdatingCredits] = useState<boolean>(false);
 
+  // Auth State
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+
   // --- CONCEPT MODE STATE (ONLY) ---
   const [conceptImages, setConceptImages] = useState<ProcessedImage[]>([]);
   const [conceptSettings, setConceptSettings] = useState<GenerationSettings>({ ...DEFAULT_GENERATION_SETTINGS });
@@ -93,6 +98,15 @@ const App: React.FC = () => {
         } catch (e) { console.error("Gallery init error", e); }
     };
     loadGallery();
+
+    // Init Auth Listener
+    const auth = getFirebaseAuth();
+    if (auth) {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setCurrentUser(user);
+        });
+        return () => unsubscribe();
+    }
   }, []);
   
   // Persist API Key changes & Poll Credits
@@ -133,6 +147,21 @@ const App: React.FC = () => {
           if (!silent) console.warn("Failed to fetch credits", e);
       } finally {
           if (!silent) setIsUpdatingCredits(false);
+      }
+  };
+
+  const handleLogin = async () => {
+      try {
+          await loginWithGoogle();
+      } catch (error: any) {
+          alert("Đăng nhập thất bại: " + error.message);
+      }
+  };
+
+  const handleLogout = async () => {
+      const confirm = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
+      if (confirm) {
+          await logoutUser();
       }
   };
 
@@ -341,6 +370,29 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
+                {/* LOGIN / USER SECTION */}
+                {currentUser ? (
+                    <div className="flex items-center gap-2 mr-2">
+                        {currentUser.photoURL ? (
+                            <img src={currentUser.photoURL} alt="User" className="w-7 h-7 rounded-full border border-gray-600" />
+                        ) : (
+                            <UserCircleIcon className="w-7 h-7 text-gray-400" />
+                        )}
+                        <span className="hidden xl:inline text-xs font-bold text-gray-300 truncate max-w-[100px]">{currentUser.displayName}</span>
+                        <button onClick={handleLogout} title="Đăng xuất" className="text-gray-500 hover:text-red-400 transition-colors">
+                            <ArrowRightOnRectangleIcon className="w-5 h-5" />
+                        </button>
+                    </div>
+                ) : (
+                    <button 
+                        onClick={handleLogin}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 rounded text-gray-300 text-sm font-bold shadow-sm transition-all mr-2 whitespace-nowrap"
+                    >
+                        <UserCircleIcon className="w-4 h-4" />
+                        Đăng nhập
+                    </button>
+                )}
+
                 {/* Credit Display (Shown whenever credits are successfully fetched) */}
                 {gommoCredits !== null && (
                    <button 
