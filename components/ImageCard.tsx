@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ProcessedImage } from '../types';
-import { ArrowPathIcon, TrashIcon, ArrowDownTrayIcon, CheckIcon, ScissorsIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, TrashIcon, ArrowDownTrayIcon, CheckIcon, ScissorsIcon, EyeIcon } from '@heroicons/react/24/outline';
 
 interface ImageCardProps {
   item: ProcessedImage;
@@ -10,10 +10,11 @@ interface ImageCardProps {
   onRegenerate: (item: ProcessedImage) => void;
   isFullHeight?: boolean;
   onDoubleClick?: () => void;
-  onCrop?: (item: ProcessedImage) => void; // New prop for crop action
+  onCrop?: (item: ProcessedImage) => void;
+  onView?: () => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, onRegenerate, isFullHeight, onDoubleClick, onCrop }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, onRegenerate, isFullHeight, onDoubleClick, onCrop, onView }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false); // State for right-click comparison
   
@@ -41,6 +42,43 @@ const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, o
       if (isCompleted) {
           e.preventDefault();
       }
+  };
+
+  const handleDownload = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!item.generatedImageUrl) return;
+
+    try {
+        // Create filename
+        const filename = `luom_pro_ai_${item.id}.jpg`;
+
+        // If data URL, download directly
+        if (item.generatedImageUrl.startsWith('data:')) {
+            const a = document.createElement('a');
+            a.href = item.generatedImageUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        } else {
+            // If remote URL, fetch as blob to force download
+            // This prevents opening in new tab for external URLs (like Gommo)
+            const response = await fetch(item.generatedImageUrl);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        }
+    } catch (err) {
+        console.error("Download failed", err);
+        // Fallback if fetch fails (e.g. CORS strict), try opening
+        window.open(item.generatedImageUrl, '_blank');
+    }
   };
 
   return (
@@ -118,30 +156,39 @@ const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, o
             {isGenerating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : "Tạo Ảnh"}
         </button>
 
-        {/* 2. Crop Button (Gray/Purple) - New Addition */}
+        {/* 2. Crop Button (Gray/Purple) */}
         {onCrop && (
             <button 
                 onClick={(e) => { e.stopPropagation(); onCrop(item); }}
-                className="w-12 bg-zinc-700 hover:bg-zinc-600 text-white transition-colors py-2.5 rounded shadow-md flex items-center justify-center"
+                className="w-10 bg-zinc-700 hover:bg-zinc-600 text-white transition-colors py-2.5 rounded shadow-md flex items-center justify-center"
                 title="Cắt & Xoay Ảnh"
                 disabled={isGenerating}
             >
                 <ScissorsIcon className="w-5 h-5" />
             </button>
         )}
+        
+        {/* 3. View Button (Gray/Blue) - NEW */}
+        <button 
+            onClick={(e) => { e.stopPropagation(); onView && onView(); }}
+            className="w-10 bg-zinc-700 hover:bg-sky-600 text-white transition-colors py-2.5 rounded shadow-md flex items-center justify-center"
+            title="Xem ảnh lớn"
+            disabled={isGenerating}
+        >
+            <EyeIcon className="w-5 h-5" />
+        </button>
 
-        {/* 3. Download Button (Blue) */}
+        {/* 4. Download Button (Blue) - UPDATED */}
         <div className="flex-1">
             {isCompleted ? (
-                <a 
-                    href={item.generatedImageUrl} 
-                    download={`hacked_concept_${item.id}.jpg`}
-                    onClick={(e) => e.stopPropagation()}
+                <button 
+                    onClick={handleDownload}
                     className="w-full flex items-center justify-center gap-2 bg-[#0288d1] hover:bg-[#03a9f4] text-white transition-colors rounded py-2.5 shadow-md text-sm font-bold uppercase tracking-wider"
+                    title="Tải ảnh về máy ngay lập tức"
                 >
                     <ArrowDownTrayIcon className="w-5 h-5 stroke-[2px]" />
                     Tải về
-                </a>
+                </button>
             ) : (
                 <div className="w-full h-[44px] flex items-center justify-center bg-gray-800/50 rounded cursor-not-allowed opacity-30">
                     <ArrowDownTrayIcon className="w-5 h-5" />

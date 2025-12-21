@@ -348,6 +348,7 @@ const App: React.FC = () => {
                                     onDelete={(id) => setConceptImages(p => p.filter(x => x.id !== id))}
                                     onRegenerate={handleRegenerateImage}
                                     onDoubleClick={() => openLightbox(img)}
+                                    onView={() => openLightbox(img)}
                                   />
                                 </div>
                             ))}
