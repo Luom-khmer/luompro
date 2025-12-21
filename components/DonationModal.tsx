@@ -2,8 +2,8 @@
 import React from 'react';
 
 // Using VietQR API to generate the specific QR code style matching the user's request
-// Bank: VIB, Account: 936909555, Name: NGUYEN DINH TIEN
-const qrCodeUrl = "https://img.vietqr.io/image/VIB-936909555-print.png?accountName=NGUYEN%20DINH%20TIEN&addInfo=Ung%20ho%20TienAdobe";
+// Bank: Vietcombank, Account: 1038605000, Name: DANH LUOM
+const qrCodeUrl = "https://img.vietqr.io/image/VCB-1038605000-print.png?accountName=DANH%20LUOM&addInfo=Ung%20ho%20LuomPro";
 
 interface DonationModalProps {
   isOpen: boolean;
@@ -38,7 +38,7 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose }) => {
           <div className="bg-white p-2 rounded-lg mb-6 overflow-hidden">
             <img 
                 src={qrCodeUrl} 
-                alt="Quét mã QR VIB - NGUYỄN ĐÌNH TIẾN" 
+                alt="Quét mã QR Vietcombank - DANH LUOM" 
                 className="w-full h-auto rounded-lg object-contain" 
             />
           </div>
@@ -47,15 +47,15 @@ const DonationModal: React.FC<DonationModalProps> = ({ isOpen, onClose }) => {
             <div className="space-y-3">
                 <div className="flex justify-between items-center border-b border-zinc-700 pb-2">
                     <span className="text-gray-400 text-sm">Ngân hàng</span>
-                    <span className="font-bold text-white text-lg">VIB</span>
+                    <span className="font-bold text-white text-lg">Vietcombank</span>
                 </div>
                 <div className="flex justify-between items-center border-b border-zinc-700 pb-2">
                     <span className="text-gray-400 text-sm">Chủ tài khoản</span>
-                    <span className="font-bold text-red-400 text-md uppercase text-right">NGUYỄN ĐÌNH TIẾN</span>
+                    <span className="font-bold text-red-400 text-md uppercase text-right">DANH LUOM</span>
                 </div>
                 <div className="flex justify-between items-center pt-1">
                     <span className="text-gray-400 text-sm">Số tài khoản</span>
-                    <span className="font-mono font-bold text-green-400 text-xl tracking-wider">936909555</span>
+                    <span className="font-mono font-bold text-green-400 text-xl tracking-wider">1038605000</span>
                 </div>
             </div>
           </div>
