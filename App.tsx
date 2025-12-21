@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo } from './services/gommoService';
-import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage } from './types';
+import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
 import { getFirebaseAuth, loginWithGoogle, logoutUser } from './services/firebaseService';
@@ -15,8 +15,9 @@ import DonationModal from './components/DonationModal';
 import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
+import AdminPanel from './components/AdminPanel';
 
-import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -51,6 +52,7 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
 
 const App: React.FC = () => {
   // --- GLOBAL STATE ---
+  const [currentView, setCurrentView] = useState<ViewMode>('concept');
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   
@@ -64,6 +66,19 @@ const App: React.FC = () => {
 
   // Auth State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  // Check if User is Admin
+  const isAdmin = React.useMemo(() => {
+     if (!currentUser || !currentUser.email) return false;
+     return (APP_CONFIG.ADMIN_EMAILS || []).includes(currentUser.email);
+  }, [currentUser]);
+
+  // If user logs out while in admin view, redirect to home
+  useEffect(() => {
+      if (!isAdmin && currentView === 'admin') {
+          setCurrentView('concept');
+      }
+  }, [isAdmin, currentView]);
 
   // --- CONCEPT MODE STATE (ONLY) ---
   const [conceptImages, setConceptImages] = useState<ProcessedImage[]>([]);
@@ -351,13 +366,25 @@ const App: React.FC = () => {
         {/* APP HEADER */}
         <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative">
              <div className="w-1/3 flex items-center justify-start gap-3">
-                 <button 
-                    onClick={handleDeleteAll}
-                    className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-red-600 hover:bg-red-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-red-400 uppercase tracking-wide shadow-sm"
-                >
-                        <TrashIcon className="w-3.5 h-3.5 stroke-[2px]" />
-                        Xoá tất cả ảnh
-                </button>
+                 {/* Only show "Delete All" in Concept Mode */}
+                 {currentView === 'concept' && (
+                    <button 
+                        onClick={handleDeleteAll}
+                        className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-red-600 hover:bg-red-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-red-400 uppercase tracking-wide shadow-sm"
+                    >
+                            <TrashIcon className="w-3.5 h-3.5 stroke-[2px]" />
+                            Xoá tất cả ảnh
+                    </button>
+                 )}
+                 {currentView === 'admin' && (
+                     <button 
+                         onClick={() => setCurrentView('concept')}
+                         className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm"
+                     >
+                         <HomeIcon className="w-3.5 h-3.5 stroke-[2px]" />
+                         Về trang chủ
+                     </button>
+                 )}
              </div>
 
              <div className="flex flex-col items-center text-center w-1/3">
@@ -370,6 +397,18 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
+                {/* ADMIN BUTTON (Visible only if isAdmin) */}
+                {isAdmin && (
+                    <button 
+                        onClick={() => setCurrentView(currentView === 'admin' ? 'concept' : 'admin')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold shadow-sm transition-all whitespace-nowrap border ${currentView === 'admin' ? 'bg-red-900/40 border-red-500 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-red-500'}`}
+                        title="Trang quản trị"
+                    >
+                        <ShieldCheckIcon className="w-4 h-4" />
+                        Admin
+                    </button>
+                )}
+
                 {/* LOGIN / USER SECTION */}
                 {currentUser ? (
                     <div className="flex items-center gap-2 mr-2">
@@ -393,7 +432,7 @@ const App: React.FC = () => {
                     </button>
                 )}
 
-                {/* Credit Display (Shown whenever credits are successfully fetched) */}
+                {/* Credit Display */}
                 {gommoCredits !== null && (
                    <button 
                         onClick={() => updateGommoCredits(false)}
@@ -419,82 +458,88 @@ const App: React.FC = () => {
              </div>
         </header>
 
-        {/* MAIN BODY - Only showing Concept Grid Layout */}
+        {/* MAIN BODY SWITCHER */}
         <div className="flex-1 overflow-hidden relative">
-          <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
-              <main className="flex-1 flex flex-col bg-[#0f1012] min-h-0">
-                <div 
-                    className={`flex-1 overflow-y-auto p-6 scroll-smooth relative transition-colors ${isDragging ? 'bg-gray-900/50' : ''}`}
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                    onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}
-                >
-                    {conceptImages.length === 0 ? (
-                        // EMPTY STATE
-                        <div className="h-full flex flex-col items-center justify-center pb-20">
-                            <label className="group relative w-full max-w-3xl h-48 border border-dashed border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl hover:shadow-sky-500/10 overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                                <div className="relative w-16 h-16 rounded-full bg-[#222] group-hover:bg-sky-500/20 border border-gray-700 group-hover:border-sky-500 flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg">
-                                    <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-sky-400 transition-colors" />
+            {currentView === 'admin' ? (
+                // ADMIN VIEW
+                <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
+            ) : (
+                // CONCEPT VIEW (Standard)
+                <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
+                    <main className="flex-1 flex flex-col bg-[#0f1012] min-h-0">
+                        <div 
+                            className={`flex-1 overflow-y-auto p-6 scroll-smooth relative transition-colors ${isDragging ? 'bg-gray-900/50' : ''}`}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                            onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                            onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}
+                        >
+                            {conceptImages.length === 0 ? (
+                                // EMPTY STATE
+                                <div className="h-full flex flex-col items-center justify-center pb-20">
+                                    <label className="group relative w-full max-w-3xl h-48 border border-dashed border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl hover:shadow-sky-500/10 overflow-hidden">
+                                        <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+                                        <div className="relative w-16 h-16 rounded-full bg-[#222] group-hover:bg-sky-500/20 border border-gray-700 group-hover:border-sky-500 flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg">
+                                            <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-sky-400 transition-colors" />
+                                        </div>
+                                        <div className="relative flex flex-col items-start z-10">
+                                            <span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">
+                                                Thêm ảnh Concept
+                                            </span>
+                                            <span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2">
+                                                <PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP
+                                            </span>
+                                        </div>
+                                        <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
+                                    </label>
                                 </div>
-                                <div className="relative flex flex-col items-start z-10">
-                                    <span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">
-                                        Thêm ảnh Concept
-                                    </span>
-                                    <span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2">
-                                        <PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP
-                                    </span>
+                            ) : (
+                                // POPULATED STATE: GRID
+                                <div className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 items-stretch transition-all duration-500`}>
+                                    {conceptImages.map(img => (
+                                        <div key={img.id} className="h-auto">
+                                        <ImageCard 
+                                            item={img} 
+                                            onToggleSelect={(id) => setConceptImages(p => p.map(x => x.id === id ? { ...x, isSelected: !x.isSelected } : x))}
+                                            onDelete={(id) => setConceptImages(p => p.filter(x => x.id !== id))}
+                                            onRegenerate={handleRegenerateImage}
+                                            onDoubleClick={() => openLightbox(img)}
+                                            onView={() => openLightbox(img)}
+                                        />
+                                        </div>
+                                    ))}
+                                    <label 
+                                    className="border-2 border-dashed border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px]"
+                                    title="Thêm ảnh mới"
+                                    >
+                                        <div className="bg-gray-800 group-hover:bg-gray-700 p-4 rounded-full transition-colors mb-4">
+                                            <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-white" />
+                                        </div>
+                                        <span className="text-gray-400 group-hover:text-white font-medium text-sm">Thêm ảnh</span>
+                                        <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
+                                    </label>
                                 </div>
-                                <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
-                            </label>
+                            )}
                         </div>
-                    ) : (
-                        // POPULATED STATE: GRID
-                        <div className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 items-stretch transition-all duration-500`}>
-                            {conceptImages.map(img => (
-                                <div key={img.id} className="h-auto">
-                                  <ImageCard 
-                                    item={img} 
-                                    onToggleSelect={(id) => setConceptImages(p => p.map(x => x.id === id ? { ...x, isSelected: !x.isSelected } : x))}
-                                    onDelete={(id) => setConceptImages(p => p.filter(x => x.id !== id))}
-                                    onRegenerate={handleRegenerateImage}
-                                    onDoubleClick={() => openLightbox(img)}
-                                    onView={() => openLightbox(img)}
-                                  />
-                                </div>
-                            ))}
-                            <label 
-                              className="border-2 border-dashed border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px]"
-                              title="Thêm ảnh mới"
-                            >
-                                <div className="bg-gray-800 group-hover:bg-gray-700 p-4 rounded-full transition-colors mb-4">
-                                    <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-white" />
-                                </div>
-                                <span className="text-gray-400 group-hover:text-white font-medium text-sm">Thêm ảnh</span>
-                                <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
-                            </label>
-                        </div>
-                    )}
+                    </main>
+                    
+                    <aside className="w-[400px] shrink-0 border-l border-gray-800 bg-[#111]">
+                        <ControlPanel 
+                            settings={{...conceptSettings, apiKey: globalApiKey, gommoApiKey: globalGommoKey}}
+                            onSettingsChange={(newS) => {
+                                if(newS.apiKey !== undefined) setGlobalApiKey(newS.apiKey);
+                                if(newS.gommoApiKey !== undefined) setGlobalGommoKey(newS.gommoApiKey);
+                                setConceptSettings(prev => ({ ...prev, ...newS }));
+                            }}
+                            isProcessing={isImageProcessing}
+                            galleryItems={galleryItems}
+                            onSelectFromGallery={handleSelectFromGallery}
+                            onSyncGallery={handleSyncGommoGallery}
+                            viewMode={'concept'}
+                            setViewMode={() => {}}
+                        />
+                    </aside>
                 </div>
-              </main>
-              
-              <aside className="w-[400px] shrink-0 border-l border-gray-800 bg-[#111]">
-                  <ControlPanel 
-                      settings={{...conceptSettings, apiKey: globalApiKey, gommoApiKey: globalGommoKey}}
-                      onSettingsChange={(newS) => {
-                          if(newS.apiKey !== undefined) setGlobalApiKey(newS.apiKey);
-                          if(newS.gommoApiKey !== undefined) setGlobalGommoKey(newS.gommoApiKey);
-                          setConceptSettings(prev => ({ ...prev, ...newS }));
-                      }}
-                      isProcessing={isImageProcessing}
-                      galleryItems={galleryItems}
-                      onSelectFromGallery={handleSelectFromGallery}
-                      onSyncGallery={handleSyncGommoGallery}
-                      viewMode={'concept'}
-                      setViewMode={() => {}}
-                  />
-              </aside>
-          </div>
+            )}
         </div>
 
         <DonationModal isOpen={isDonationModalOpen} onClose={() => setIsDonationModalOpen(false)} />

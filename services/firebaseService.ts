@@ -1,10 +1,12 @@
 
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, Auth } from "firebase/auth";
+import { getFirestore, Firestore } from "firebase/firestore";
 import { APP_CONFIG } from "../config";
 
 // Initialize variables
 let auth: Auth | undefined;
+let db: Firestore | undefined;
 let googleProvider: GoogleAuthProvider | undefined;
 let isFirebaseInitialized = false;
 
@@ -13,19 +15,21 @@ try {
     if (APP_CONFIG.FIREBASE && APP_CONFIG.FIREBASE.apiKey && APP_CONFIG.FIREBASE.apiKey.length > 5) {
         const app = initializeApp(APP_CONFIG.FIREBASE);
         auth = getAuth(app);
+        db = getFirestore(app); // Khởi tạo Firestore Database
         googleProvider = new GoogleAuthProvider();
         isFirebaseInitialized = true;
     }
 } catch (error) {
-    console.warn("Firebase initialization failed. Check your config.ts", error);
+    console.warn("Firebase initialization failed. Check your config.ts");
 }
 
 export const getFirebaseAuth = () => auth;
 
+// Export Database instance for usage in other components
+export const getFirebaseDB = () => db;
+
 export const loginWithGoogle = async () => {
-    if (!isFirebaseInitialized || !auth || !googleProvider) {
-        throw new Error("Firebase chưa được cấu hình. Vui lòng cập nhật config.ts");
-    }
+    if (!auth || !googleProvider) throw new Error("Firebase chưa được cấu hình hoặc khởi tạo thất bại.");
     try {
         const result = await signInWithPopup(auth, googleProvider);
         return result.user;
@@ -40,6 +44,8 @@ export const logoutUser = async () => {
     try {
         await signOut(auth);
     } catch (error) {
-        console.error("Logout Error:", error);
+        console.error("Logout failed", error);
     }
 };
+
+export const isFirebaseReady = () => isFirebaseInitialized;

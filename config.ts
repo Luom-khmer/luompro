@@ -22,5 +22,12 @@ export const APP_CONFIG = {
         messagingSenderId: "202468401310",
         appId: "1:202468401310:web:00a0b0b6e6704b68bd5b8f",
         measurementId: "G-PGV1ZZ3PR6"
-    }
+    },
+
+    // 4. Danh sách Email Admin (Thay thế bằng email thật của bạn)
+    ADMIN_EMAILS: [
+        "admin@gmail.com", 
+        "nguyendinhtien@gmail.com",
+        "luompro@gmail.com" 
+    ]
 };

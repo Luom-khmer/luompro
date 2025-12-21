@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Hàm kiểm tra Admin: So khớp email với danh sách Admin hardcode
+    // Lưu ý: Cần đồng bộ danh sách này với ADMIN_EMAILS trong config.ts
+    function isAdmin() {
+      return request.auth != null && 
+        (request.auth.token.email == 'admin@gmail.com' || 
+         request.auth.token.email == 'nguyendinhtien@gmail.com' || 
+         request.auth.token.email == 'luompro@gmail.com');
+    }
+
+    // Collection "users":
+    // - User thường: Chỉ đọc/ghi document có ID trùng với UID của mình.
+    // - Admin: Đọc/ghi tất cả user.
+    match /users/{userId} {
+      allow read, write: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+
+    // Các Collection khác (Logs, System Settings, v.v.):
+    // - Chỉ Admin mới được phép truy cập (đọc/ghi).
+    // - Chặn người dùng thường.
+    match /{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
