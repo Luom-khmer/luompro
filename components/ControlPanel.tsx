@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
@@ -255,7 +254,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const formatAutoPrompt = (content: string) => {
-    return `Thay đổi hoàn toàn bối cảnh sang:\n[${content}]\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
+      // Nếu content đã bắt đầu bằng cụm từ chỉ định (từ Phân tích nền), giữ nguyên
+      if (content.toLowerCase().startsWith("thay đổi nền")) {
+          return `${content}\n\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
+      }
+      return `Thay đổi hoàn toàn bối cảnh sang:\n[${content}]\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
   };
 
   // Helper function to add/remove tags from prompt
@@ -365,7 +368,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       } as Partial<GenerationSettings>);
   };
 
-  const handleAnalysisSelection = async (mode: 'basic' | 'deep' | 'painting') => {
+  const handleAnalysisSelection = async (mode: 'basic' | 'deep' | 'painting' | 'background') => {
       if (!pendingReferenceFile) return;
       
       setShowAnalysisModal(false);
@@ -565,6 +568,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     // Uses the top level variables calculated before conditional rendering
     const showResolution = !isGommoProvider || (isGommoProvider && activeGommoModel && activeGommoModel.resolutions && activeGommoModel.resolutions.length > 0);
     const resolutions = isGommoProvider && activeGommoModel ? (activeGommoModel.resolutions || []) : [];
+
+    // Chỉ hiển thị khi đã chọn Model
+    const isModelSelected = isGommoProvider ? !!activeGommoModel : !!settings.model;
+    if (!isModelSelected) return null;
 
     return (
     <div className="border border-gray-700 rounded-lg bg-[#1a1a1a] mb-4">
@@ -799,6 +806,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     </button>
                     <button onClick={() => handleAnalysisSelection('deep')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-purple-500 transition-all text-left group">
                         <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Chuyên sâu<EyeIcon className="w-5 h-5 text-gray-500 group-hover:text-purple-400" /></span>
+                    </button>
+                    {/* New Background Analysis Option */}
+                    <button onClick={() => handleAnalysisSelection('background')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-emerald-500 transition-all text-left group">
+                        <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Nền<PhotoIcon className="w-5 h-5 text-gray-500 group-hover:text-emerald-400" /></span>
+                        <span className="text-xs text-gray-400">Chỉ lấy thông tin bối cảnh, bỏ qua nhân vật</span>
                     </button>
                 </div>
                 <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end">

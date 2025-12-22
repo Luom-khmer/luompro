@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, Modality, Part } from "@google/genai";
 import { GenerationSettings, WeatherOption, ProfileSettings } from "../types";
 import { APP_CONFIG } from '../config';
@@ -360,7 +359,7 @@ export const generateStyledImage = async (
     });
 };
 
-export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' | 'painting' = 'basic', apiKey?: string): Promise<string> => {
+export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' | 'painting' | 'background' = 'basic', apiKey?: string): Promise<string> => {
     return withKeyRotation(apiKey, async (ai) => {
         const base64Data = await resizeImage(file, 1024, 1024, 0.8);
         let mimeType = file.type;
@@ -384,6 +383,14 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
             Nhiệm vụ: Trích xuất các từ khóa về Phong cách (Style), Ánh sáng (Lighting), và Chất liệu (Texture) để làm prompt ghép ảnh.
             YÊU CẦU CỰC KỲ QUAN TRỌNG: Loại bỏ các từ chỉ không gian cụ thể, con người. Tập trung vào Vật liệu, Ánh sáng, Màu sắc & Mood.
             Định dạng: Chỉ liệt kê từ khóa, ngăn cách bằng dấu phẩy. Ngôn ngữ: Tiếng Việt.
+            `;
+        } else if (mode === 'background') {
+            // Chế độ Phân tích nền (Background Only)
+            prompt = `
+            Bạn là Chuyên gia Thiết kế Bối cảnh (Set Designer).
+            Nhiệm vụ: Phân tích chi tiết BỐI CẢNH (Background) trong ảnh.
+            QUAN TRỌNG: TUYỆT ĐỐI KHÔNG mô tả nhân vật, con người, hay chủ thể chính. Chỉ tập trung vào không gian, kiến trúc, đồ vật nền, ánh sáng môi trường, thời gian, địa điểm.
+            ĐẦU RA: Bắt buộc bắt đầu bằng cụm từ chính xác: "thay đổi nền trong ảnh thành " theo sau là mô tả chi tiết bối cảnh đó bằng Tiếng Việt.
             `;
         } else {
             // Chế độ chuyên sâu: Đóng vai Đạo diễn hình ảnh, mô tả chi tiết không khí
