@@ -42,6 +42,7 @@ export interface GenerationSettings {
     blurAmount: number;
     minimalCustomization: boolean;
     originalImageCompatibility: boolean;
+    preserveFaceDetail: boolean; // New option added
     preservePose: boolean;
     preserveComposition: boolean;
     preserveFocalLength: boolean;

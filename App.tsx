@@ -32,6 +32,7 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     preserveAspectRatio: false,
     disableForeground: false,
     originalImageCompatibility: false,
+    preserveFaceDetail: false, // Default value for new option
     preserveSubjectPosition: true,
     keepOriginalOutfit: false,
     enableUpscale: false,

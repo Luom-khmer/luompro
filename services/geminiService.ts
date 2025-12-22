@@ -238,6 +238,7 @@ export const generateStyledImage = async (
         const { 
             userPrompt, blurAmount, weather, lightingEffects, 
             preserveSubjectPosition, preservePose, preserveComposition, preserveFocalLength, preserveAspectRatio, disableForeground, originalImageCompatibility,
+            preserveFaceDetail, // Extract new setting
             keepOriginalOutfit, minimalCustomization, enableUpscale, restorationCustomPrompt,
             model, aspectRatio, imageSize
         } = settings;
@@ -322,7 +323,8 @@ export const generateStyledImage = async (
             disableForeground ? "5. NO FOREGROUND: Do not generate objects in front of subject." : "",
             preserveSubjectPosition ? "6. PRESERVE SUBJECT POSITION: Subject remains in EXACT SAME PIXEL COORDINATES." : "",
             originalImageCompatibility ? "7. SMART CONTEXT: Adapt background to Original Image's framing (Headshot vs Full Body)." : "",
-            keepOriginalOutfit ? "8. OUTFIT LOCK: Keep the subject's original clothing 100% unchanged. Do not alter color or style of clothes." : ""
+            preserveFaceDetail ? "8. FACE INTEGRITY LOCK: Preserve the subject's original facial features, expression, and likeness 100%. Do not alter the face." : "",
+            keepOriginalOutfit ? "9. OUTFIT LOCK: Keep the subject's original clothing 100% unchanged. Do not alter color or style of clothes." : ""
         ].filter(Boolean).join("\n");
 
         const finalPrompt = `
