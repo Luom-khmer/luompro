@@ -47,6 +47,59 @@ const AUTO_PRESET_SETTINGS = {
     disableForeground: false,
 };
 
+// Mapping giữa Option Key và Prompt Text hiển thị
+const OPTION_PROMPTS: Record<string, string> = {
+    minimalCustomization: "CHẾ ĐỘ: Ghép ảnh tối giản (Giữ nguyên gốc tối đa)",
+    originalImageCompatibility: "BỐI CẢNH THÔNG MINH: Tự động điều chỉnh nền theo khung hình ảnh gốc",
+    preserveFaceDetail: "KHÓA KHUÔN MẶT: Giữ nguyên 100% chi tiết gương mặt gốc",
+    preservePose: "KHÓA DÁNG: Giữ nguyên tư thế nhân vật giống hệt ảnh gốc",
+    keepOriginalOutfit: "KHÓA TRANG PHỤC: Giữ nguyên quần áo gốc không thay đổi",
+    preserveComposition: "KHÓA BỐ CỤC: Giữ nguyên vị trí và kích thước chủ thể",
+    preserveFocalLength: "KHÓA TIÊU CỰ: Giữ nguyên độ sâu trường ảnh gốc",
+    preserveAspectRatio: "KHÓA TỶ LỆ: Giữ nguyên tỷ lệ khung hình ảnh đầu vào",
+    disableForeground: "XÓA TIỀN CẢNH: Không tạo vật thể che chắn phía trước chủ thể"
+};
+
+// Mapping cho Thời tiết
+const WEATHER_PROMPTS: Record<string, string> = {
+  [WeatherOption.LIGHT_SUN]: "THỜI TIẾT: Nắng nhẹ, ánh sáng tự nhiên dịu dàng",
+  [WeatherOption.HARSH_SUN]: "THỜI TIẾT: Nắng gắt, độ tương phản cao, ánh sáng mạnh",
+  [WeatherOption.SUNSET]: "THỜI TIẾT: Hoàng hôn, giờ vàng, ánh sáng ấm áp",
+  [WeatherOption.NIGHT]: "THỜI TIẾT: Ban đêm, ánh trăng, phong cách điện ảnh tối",
+  [WeatherOption.FOG]: "THỜI TIẾT: Sương mù, mờ ảo, ánh sáng khuếch tán mềm"
+};
+
+// Mapping cho Hiệu ứng ánh sáng
+const LIGHTING_PROMPTS: Record<string, string> = {
+  "Ánh sáng viền tóc": "ÁNH SÁNG: Viền sáng tóc, tóc phát sáng nhẹ",
+  "Ánh sáng vành tóc trái": "ÁNH SÁNG: Viền sáng tóc bên trái",
+  "Ánh sáng vành tóc phải": "ÁNH SÁNG: Viền sáng tóc bên phải",
+  "Đèn nền trái": "ÁNH SÁNG: Đèn nền mạnh từ phía trái",
+  "Đèn nền phải": "ÁNH SÁNG: Đèn nền mạnh từ phía phải",
+  "Đèn gáy": "ÁNH SÁNG: Chiếu sáng vùng gáy",
+  "Đèn đỉnh đầu sau": "ÁNH SÁNG: Đèn chiếu từ phía sau đỉnh đầu",
+  "Vai trái": "ÁNH SÁNG: Viền sáng nhấn vai trái",
+  "Vai phải": "ÁNH SÁNG: Viền sáng nhấn vai phải",
+  "Đường viền cổ áo": "ÁNH SÁNG: Nhấn sáng đường viền cổ áo",
+  "Lưng": "ÁNH SÁNG: Ánh sáng mềm vùng lưng",
+  "Sống lưng": "ÁNH SÁNG: Highlight dọc sống lưng",
+  "Vành eo": "ÁNH SÁNG: Viền sáng nhấn vòng eo",
+  "Vành hông trái": "ÁNH SÁNG: Viền sáng hông trái",
+  "Vành hông phải": "ÁNH SÁNG: Viền sáng hông phải",
+  "Tay": "ÁNH SÁNG: Tạo khối ánh sáng trên tay",
+  "Vệt sáng chéo trên váy": "ÁNH SÁNG: Vệt sáng chiếu chéo trên váy",
+  "Ren váy": "ÁNH SÁNG: Nhấn chi tiết ren váy",
+  "Nếp gấp váy": "ÁNH SÁNG: Đổ bóng và sáng nhấn nếp gấp váy",
+  "Gấu váy": "ÁNH SÁNG: Ánh sáng chiếu vào gấu váy",
+  "Đuôi váy": "ÁNH SÁNG: Làm sáng đuôi váy",
+  "Đèn nền khăn voan": "ÁNH SÁNG: Đèn nền xuyên qua khăn voan",
+  "Ánh sáng xuyên qua khăn voan": "ÁNH SÁNG: Tia sáng xuyên qua lớp voan mỏng",
+  "Vệt sáng sàn phía trước": "ÁNH SÁNG: Vệt sáng trên sàn phía trước",
+  "Vệt sáng sàn phía sau": "ÁNH SÁNG: Vệt sáng trên sàn phía sau",
+  "Vệt sáng cửa sổ trên nền": "ÁNH SÁNG: Bóng đổ khung cửa sổ trên nền",
+  "Vệt sáng ngang": "ÁNH SÁNG: Chùm sáng ngang qua khung hình"
+};
+
 const GEMINI_MODELS = [
     { id: 'gemini-2.5-flash-image', label: 'Nano Banana (Miễn phí)' },
 ];
@@ -205,15 +258,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     return `Thay đổi hoàn toàn bối cảnh sang:\n[${content}]\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
   };
 
+  // Helper function to add/remove tags from prompt
   const updatePromptWithTag = (prompt: string, tag: string, add: boolean): string => {
-      const parts = prompt.split(/[\n,]+/).map(p => p.trim()).filter(p => p !== "").join('\n');
-      // Fix: Simplistic logic, in a real app would need better deduplication
+      let current = prompt || "";
       if (add) {
-          if (!parts.includes(tag)) return parts + (parts ? '\n' : '') + tag;
+          // Thêm tag nếu chưa có
+          if (!current.includes(tag)) {
+              return current.trim().length > 0 ? `${current.trim()}\n${tag}` : tag;
+          }
+          return current;
       } else {
-          // Remove not implemented for simplicity in this snippet as tag could be partial match
+          // Xóa tag và làm sạch dòng trống
+          return current.split('\n').filter(line => line.trim() !== tag).join('\n').trim();
       }
-      return parts;
   };
 
   const BODY_LIGHTING_OPTIONS = ["Vai trái", "Vai phải", "Đường viền cổ áo", "Lưng", "Sống lưng", "Vành eo", "Vành hông trái", "Vành hông phải"];
@@ -221,20 +278,69 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleLightingChange = (effect: string) => {
     const currentEffects = settings.lightingEffects || [];
     let newEffects;
+    let isAdding = false;
+    
     if (currentEffects.includes(effect)) {
         newEffects = currentEffects.filter(e => e !== effect);
+        isAdding = false;
     } else {
         newEffects = [...currentEffects, effect];
+        isAdding = true;
     }
-    onSettingsChange({ lightingEffects: newEffects });
+
+    // Cập nhật Prompt
+    const tag = LIGHTING_PROMPTS[effect];
+    let newPrompt = settings.userPrompt;
+    if (tag) {
+        newPrompt = updatePromptWithTag(newPrompt, tag, isAdding);
+    }
+
+    onSettingsChange({ lightingEffects: newEffects, userPrompt: newPrompt });
   };
 
   const handleWeatherChange = (opt: WeatherOption) => {
-    onSettingsChange({ weather: opt });
+    // Nếu chọn lại mục đang active -> tắt (về None)
+    const isSame = settings.weather === opt;
+    const newWeather = isSame ? WeatherOption.NONE : opt;
+    
+    let newPrompt = settings.userPrompt;
+
+    // 1. Xóa prompt của weather cũ (nếu không phải None)
+    if (settings.weather !== WeatherOption.NONE) {
+        const oldTag = WEATHER_PROMPTS[settings.weather];
+        if (oldTag) newPrompt = updatePromptWithTag(newPrompt, oldTag, false);
+    }
+
+    // 2. Thêm prompt của weather mới (nếu không phải None)
+    if (newWeather !== WeatherOption.NONE) {
+        const newTag = WEATHER_PROMPTS[newWeather];
+        if (newTag) newPrompt = updatePromptWithTag(newPrompt, newTag, true);
+    }
+
+    onSettingsChange({ weather: newWeather, userPrompt: newPrompt });
   };
 
   const handleBlurChange = (val: number) => {
-      onSettingsChange({ blurAmount: val });
+      // 1. Xác định nội dung mô tả dựa trên giá trị f-stop (val)
+      let blurDescription = "";
+      if (val <= 3.5) {
+          blurDescription = "ĐỘ MỜ: Xóa phông mạnh (Strong Bokeh), nền mờ ảo, nổi bật chủ thể";
+      } else if (val <= 8.0) {
+          blurDescription = "ĐỘ MỜ: Xóa phông nhẹ (Medium Depth), nền mờ tự nhiên";
+      } else {
+          blurDescription = "ĐỘ MỜ: Rõ nét toàn cảnh (Sharp Background), lấy nét sâu";
+      }
+
+      // 2. Xử lý chuỗi Prompt: Xóa dòng "ĐỘ MỜ:" cũ (nếu có) để tránh trùng lặp
+      let currentPrompt = settings.userPrompt || "";
+      const lines = currentPrompt.split('\n').filter(line => !line.trim().startsWith("ĐỘ MỜ:"));
+      
+      // 3. Thêm dòng mô tả mới vào cuối
+      lines.push(blurDescription);
+      
+      const newPrompt = lines.join('\n').trim();
+
+      onSettingsChange({ blurAmount: val, userPrompt: newPrompt });
   };
 
   const handleBlurCommit = () => {
@@ -242,8 +348,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleOptionToggle = (key: keyof GenerationSettings, label: string) => {
-      const currentValue = settings[key] as boolean;
-      onSettingsChange({ [key]: !currentValue } as Partial<GenerationSettings>);
+      const currentValue = !!settings[key]; // ép kiểu boolean cho chắc chắn
+      const newValue = !currentValue;
+      
+      // Logic update Prompt
+      const promptText = OPTION_PROMPTS[key as string];
+      let newPrompt = settings.userPrompt;
+
+      if (promptText) {
+          newPrompt = updatePromptWithTag(newPrompt, promptText, newValue);
+      }
+
+      onSettingsChange({ 
+          [key]: newValue,
+          userPrompt: newPrompt
+      } as Partial<GenerationSettings>);
   };
 
   const handleAnalysisSelection = async (mode: 'basic' | 'deep' | 'painting') => {
