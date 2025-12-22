@@ -391,6 +391,8 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
             Nhiệm vụ: Phân tích chi tiết BỐI CẢNH (Background) trong ảnh.
             QUAN TRỌNG: TUYỆT ĐỐI KHÔNG mô tả nhân vật, con người, hay chủ thể chính. Chỉ tập trung vào không gian, kiến trúc, đồ vật nền, ánh sáng môi trường, thời gian, địa điểm.
             ĐẦU RA: Bắt buộc bắt đầu bằng cụm từ chính xác: "thay đổi nền trong ảnh thành " theo sau là mô tả chi tiết bối cảnh đó bằng Tiếng Việt.
+            
+            “Tự động lấy góc máy/độ cao camera/tiêu cự ước lượng từ ảnh gốc của chủ thể và chỉnh nền mới khớp phối cảnh tương ứng; đồng bộ ánh sáng (hướng/cường độ/độ mềm), nhiệt độ màu & tint, phơi sáng–tương phản, DOF–độ sắc nét và grain/noise; cân tỷ lệ không gian, thêm contact shadow/ambient occlusion linh hoạt theo điểm chạm (không thấy chân thì shadow mềm dưới vùng thấp nhất hoặc vùng tiếp giáp), thêm light wrap quanh viền để xóa halo; kết quả photorealistic như ảnh chụp thật, không lộ dấu ghép/AI.”
             `;
         } else {
             // Chế độ chuyên sâu: Đóng vai Đạo diễn hình ảnh, mô tả chi tiết không khí
