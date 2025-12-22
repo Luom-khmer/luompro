@@ -3,6 +3,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { APP_CONFIG } from "../config";
+import { PricingConfig, PricingPackage } from "../types";
 
 // Initialize variables
 let auth: firebase.auth.Auth | undefined;
@@ -137,6 +138,108 @@ export const getSystemAnnouncement = async (): Promise<SystemAnnouncement | null
 export const updateSystemAnnouncement = async (data: Partial<SystemAnnouncement>) => {
     if (!db) throw new Error("Database not initialized");
     await db.collection('system').doc('announcement').set({
+        ...data,
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+};
+
+// --- PRICING SYSTEM FEATURES ---
+
+const DEFAULT_PRICING_CONFIG: PricingConfig = {
+    bannerTitle: "TIỆC CUỐI NĂM - KHUYẾN MÃI CREDITS!",
+    bannerSubtitle: "Nạp credit ngay hôm nay để nhận bonus tới 75% Credits. Ưu đãi có hiệu lực đến 31/12/2025.",
+    packages: [
+        {
+            id: 'trial',
+            name: "GÓI TRẢI NGHIỆM",
+            price: "49.000",
+            credits: 1000,
+            originalCredits: 600,
+            theme: 'blue',
+            tag: "BONUS",
+            buttonText: "Đăng ký ngay",
+            features: [
+                "1000 credits hàng tháng",
+                "Tạo ~200 ảnh Nano Banana",
+                "Tạo ~50 video Veo3",
+                "Tạo ~30 video Kling",
+                "Quyền truy cập Fast Mode"
+            ]
+        },
+        {
+            id: 'savings',
+            name: "GÓI TIẾT KIỆM",
+            price: "149.000",
+            credits: 3500,
+            originalCredits: 2000,
+            theme: 'purple',
+            tag: "PHỔ BIẾN",
+            isPopular: true,
+            buttonText: "ĐĂNG KÝ NGAY",
+            features: [
+                "3500 credits hàng tháng",
+                "Tạo ~700 ảnh mỗi tháng",
+                "Tạo ~175 video Veo3",
+                "Tạo ~115 video Kling",
+                "4 luồng xử lý song song",
+                "Quyền truy cập Fast Mode",
+                "Ưu tiên trải nghiệm trước model mới"
+            ]
+        },
+        {
+            id: 'creative',
+            name: "GÓI SÁNG TẠO",
+            price: "499.000",
+            credits: 13000,
+            originalCredits: 7500,
+            theme: 'green',
+            tag: "EXTRA CREDIT",
+            buttonText: "Đăng ký ngay",
+            features: [
+                "13000 credits hàng tháng",
+                "Tạo ~2600 ảnh mỗi tháng",
+                "Tạo ~650 video Veo3",
+                "Tạo ~400 video Kling",
+                "6 luồng xử lý song song",
+                "Quyền truy cập Fast Mode",
+                "Ưu tiên trải nghiệm trước model mới"
+            ]
+        },
+        {
+            id: 'unlimited',
+            name: "UNLIMITED (COMING SOON)",
+            price: "INCOMING",
+            credits: 0,
+            theme: 'orange',
+            buttonText: "Đăng ký ngay",
+            features: [
+                "Toàn bộ Credit",
+                "Tất cả tính năng cao cấp",
+                "Ưu tiên hỗ trợ VIP 24/7",
+                "Hàng đợi xử lý nhanh hơn",
+                "Bonus credit miễn phí mỗi ngày"
+            ]
+        }
+    ]
+};
+
+export const getPricingConfig = async (): Promise<PricingConfig> => {
+    if (!db) return DEFAULT_PRICING_CONFIG;
+    try {
+        const doc = await db.collection('system').doc('pricing').get();
+        if (doc.exists) {
+            return doc.data() as PricingConfig;
+        }
+        return DEFAULT_PRICING_CONFIG;
+    } catch (error) {
+        console.warn("Error fetching pricing config, using default:", error);
+        return DEFAULT_PRICING_CONFIG;
+    }
+};
+
+export const updatePricingConfig = async (data: PricingConfig) => {
+    if (!db) throw new Error("Database not initialized");
+    await db.collection('system').doc('pricing').set({
         ...data,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });

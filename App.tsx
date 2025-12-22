@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels } from './services/gommoService';
-import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel } from './types';
+import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, PricingPackage } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
 import { getFirebaseAuth, loginWithGoogle, logoutUser, listenToUserRealtime, deductUserCredits } from './services/firebaseService';
@@ -12,6 +12,7 @@ import firebase from 'firebase/compat/app';
 import ControlPanel from './components/ControlPanel';
 import ImageCard from './components/ImageCard';
 import DonationModal from './components/DonationModal';
+import PricingModal from './components/PricingModal'; // NEW IMPORT
 import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
@@ -55,7 +56,13 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
 const App: React.FC = () => {
   // --- GLOBAL STATE ---
   const [currentView, setCurrentView] = useState<ViewMode>('concept');
+  
+  // Modal States
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
+  const [donationModalMode, setDonationModalMode] = useState<'donate' | 'topup'>('donate');
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState<boolean>(false); // New State
+  const [selectedPricingPackage, setSelectedPricingPackage] = useState<PricingPackage | null>(null);
+
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
   
   // GLOBAL API KEY STATE - Initialize with Config
@@ -434,6 +441,18 @@ const App: React.FC = () => {
       setConceptImages([]);
   };
 
+  // Handler when user selects a package from PricingModal
+  const handlePackageSelection = (pkg: PricingPackage) => {
+      setIsPricingModalOpen(false);
+      if (pkg.id === 'unlimited') {
+          alert("Gói này đang phát triển, vui lòng quay lại sau!");
+          return;
+      }
+      setSelectedPricingPackage(pkg);
+      setDonationModalMode('topup');
+      setIsDonationModalOpen(true);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#0f1012] text-gray-200 font-sans overflow-hidden">
         {/* APP HEADER */}
@@ -529,8 +548,17 @@ const App: React.FC = () => {
                        <span className="text-[10px] text-teal-500/70 font-normal">api</span>
                    </button>
                 )}
+                
+                {/* TOP UP CREDITS BUTTON - Opens Pricing Modal First */}
+                <button 
+                    onClick={() => setIsPricingModalOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 rounded text-green-400 text-sm font-bold shadow-sm transition-all whitespace-nowrap"
+                >
+                    <CurrencyDollarIcon className="w-4 h-4" />
+                    Nạp Credits
+                </button>
 
-                <button onClick={() => setIsDonationModalOpen(true)} className="text-yellow-500 hover:text-yellow-400 text-sm font-medium flex items-center gap-1 whitespace-nowrap border border-yellow-500/30 px-3 py-1.5 rounded hover:bg-yellow-500/10 transition-colors">
+                <button onClick={() => { setDonationModalMode('donate'); setSelectedPricingPackage(null); setIsDonationModalOpen(true); }} className="text-yellow-500 hover:text-yellow-400 text-sm font-medium flex items-center gap-1 whitespace-nowrap border border-yellow-500/30 px-3 py-1.5 rounded hover:bg-yellow-500/10 transition-colors">
                     ☕ Donate
                 </button>
                 <div className="hidden sm:block">
@@ -628,7 +656,20 @@ const App: React.FC = () => {
         {/* System Notification Popup */}
         <SystemNotificationModal />
 
-        <DonationModal isOpen={isDonationModalOpen} onClose={() => setIsDonationModalOpen(false)} />
+        {/* Modals */}
+        <PricingModal 
+            isOpen={isPricingModalOpen} 
+            onClose={() => setIsPricingModalOpen(false)} 
+            onSelectPackage={handlePackageSelection}
+        />
+
+        <DonationModal 
+            isOpen={isDonationModalOpen} 
+            onClose={() => setIsDonationModalOpen(false)} 
+            mode={donationModalMode} 
+            selectedPackage={selectedPricingPackage}
+        />
+        
         {lightboxData && (
             <Lightbox 
                 isOpen={!!lightboxData} 

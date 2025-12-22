@@ -14,7 +14,8 @@ import {
     ExclamationTriangleIcon,
     WrenchScrewdriverIcon,
     MegaphoneIcon,
-    CheckIcon
+    CheckIcon,
+    BanknotesIcon
 } from '@heroicons/react/24/outline';
 import VisitorCounter from './VisitorCounter';
 import { 
@@ -24,8 +25,11 @@ import {
     checkAndRepairAdminRole,
     getSystemAnnouncement,
     updateSystemAnnouncement,
-    SystemAnnouncement
+    SystemAnnouncement,
+    getPricingConfig,
+    updatePricingConfig
 } from '../services/firebaseService';
+import { PricingConfig, PricingPackage } from '../types';
 
 interface AdminPanelProps {
     currentUser: firebase.User | null;
@@ -33,7 +37,7 @@ interface AdminPanelProps {
 }
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings' | 'notification'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'users' | 'settings' | 'notification' | 'pricing'>('dashboard');
     
     // State dữ liệu Users
     const [users, setUsers] = useState<any[]>([]);
@@ -52,6 +56,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
     });
     const [isSavingAnnounce, setIsSavingAnnounce] = useState(false);
 
+    // State Pricing
+    const [pricingData, setPricingData] = useState<PricingConfig | null>(null);
+    const [isSavingPricing, setIsSavingPricing] = useState(false);
+
     // Load users khi vào tab Users
     useEffect(() => {
         if (activeTab === 'users') {
@@ -59,6 +67,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
         }
         if (activeTab === 'notification') {
             loadAnnouncement();
+        }
+        if (activeTab === 'pricing') {
+            loadPricing();
         }
     }, [activeTab]);
 
@@ -83,6 +94,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
         }
     };
 
+    const loadPricing = async () => {
+        const data = await getPricingConfig();
+        setPricingData(data);
+    };
+
     const handleSaveAnnouncement = async () => {
         setIsSavingAnnounce(true);
         try {
@@ -92,6 +108,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
             alert("Lỗi lưu thông báo: " + e.message);
         } finally {
             setIsSavingAnnounce(false);
+        }
+    };
+
+    const handleSavePricing = async () => {
+        if (!pricingData) return;
+        setIsSavingPricing(true);
+        try {
+            await updatePricingConfig(pricingData);
+            alert("Đã cập nhật bảng giá thành công!");
+        } catch (e: any) {
+            alert("Lỗi lưu bảng giá: " + e.message);
+        } finally {
+            setIsSavingPricing(false);
         }
     };
 
@@ -135,6 +164,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
             }
         }
     };
+    
+    // Helpers for Pricing Form
+    const updatePackage = (index: number, field: keyof PricingPackage, value: any) => {
+        if (!pricingData) return;
+        const newPkgs = [...pricingData.packages];
+        newPkgs[index] = { ...newPkgs[index], [field]: value };
+        setPricingData({ ...pricingData, packages: newPkgs });
+    };
+
+    const updatePackageFeatures = (index: number, text: string) => {
+        if (!pricingData) return;
+        const features = text.split('\n');
+        const newPkgs = [...pricingData.packages];
+        newPkgs[index] = { ...newPkgs[index], features: features };
+        setPricingData({ ...pricingData, packages: newPkgs });
+    };
 
     const filteredUsers = users.filter(u => 
         (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -174,6 +219,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === 'users' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
                     >
                         <UsersIcon className="w-5 h-5" /> Quản Lý User
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('pricing')}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg font-medium transition-all ${activeTab === 'pricing' ? 'bg-red-600 text-white shadow-lg' : 'text-gray-400 hover:bg-gray-800 hover:text-white'}`}
+                    >
+                        <BanknotesIcon className="w-5 h-5" /> Quản Lý Giá
                     </button>
                     <button 
                         onClick={() => setActiveTab('notification')}
@@ -359,6 +410,122 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, gommoCredits }) =>
                                     </table>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {activeTab === 'pricing' && pricingData && (
+                        <div className="space-y-6 animate-fade-in pb-10">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-xl font-bold text-white">Cấu hình Bảng Giá & Khuyến Mãi</h3>
+                                <button 
+                                    onClick={handleSavePricing}
+                                    disabled={isSavingPricing}
+                                    className="px-6 py-2 bg-green-600 hover:bg-green-500 text-white font-bold rounded-lg shadow transition-all flex items-center gap-2"
+                                >
+                                    {isSavingPricing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <CheckIcon className="w-5 h-5" />}
+                                    {isSavingPricing ? "Đang lưu..." : "Lưu thay đổi"}
+                                </button>
+                            </div>
+
+                            {/* Banner Config */}
+                            <div className="bg-[#1a1a1a] p-6 rounded-xl border border-gray-700">
+                                <h4 className="text-orange-400 font-bold mb-4 uppercase text-sm tracking-wider">Cấu hình Banner Khuyến Mãi</h4>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Tiêu đề Banner</label>
+                                        <input 
+                                            type="text" 
+                                            value={pricingData.bannerTitle} 
+                                            onChange={(e) => setPricingData({...pricingData, bannerTitle: e.target.value})}
+                                            className="w-full bg-[#222] border border-gray-600 rounded p-2 text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs text-gray-500 block mb-1">Nội dung phụ (Subtitle)</label>
+                                        <textarea 
+                                            value={pricingData.bannerSubtitle} 
+                                            onChange={(e) => setPricingData({...pricingData, bannerSubtitle: e.target.value})}
+                                            className="w-full bg-[#222] border border-gray-600 rounded p-2 text-white h-20"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Packages Config */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {pricingData.packages.map((pkg, index) => (
+                                    <div key={pkg.id} className={`bg-[#1a1a1a] p-4 rounded-xl border ${pkg.isPopular ? 'border-purple-500' : 'border-gray-700'}`}>
+                                        <div className="flex justify-between items-center mb-4 border-b border-gray-700 pb-2">
+                                            <span className={`text-sm font-bold uppercase px-2 py-1 rounded bg-${pkg.theme}-900 text-${pkg.theme}-400`}>
+                                                {pkg.id} ({pkg.theme})
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <label className="text-xs text-gray-400 flex items-center gap-1 cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        checked={pkg.isPopular || false} 
+                                                        onChange={(e) => updatePackage(index, 'isPopular', e.target.checked)}
+                                                    /> Phổ biến
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-xs text-gray-500 block">Tên Gói</label>
+                                                    <input 
+                                                        type="text" value={pkg.name} 
+                                                        onChange={(e) => updatePackage(index, 'name', e.target.value)}
+                                                        className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-white"
+                                                    />
+                                                </div>
+                                                <div className="w-1/3">
+                                                    <label className="text-xs text-gray-500 block">Tag (Góc phải)</label>
+                                                    <input 
+                                                        type="text" value={pkg.tag || ''} 
+                                                        onChange={(e) => updatePackage(index, 'tag', e.target.value)}
+                                                        className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="flex-1">
+                                                    <label className="text-xs text-gray-500 block">Giá hiển thị (VNĐ)</label>
+                                                    <input 
+                                                        type="text" value={pkg.price} 
+                                                        onChange={(e) => updatePackage(index, 'price', e.target.value)}
+                                                        className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-white"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-xs text-gray-500 block">Credits nhận</label>
+                                                    <input 
+                                                        type="number" value={pkg.credits} 
+                                                        onChange={(e) => updatePackage(index, 'credits', parseInt(e.target.value))}
+                                                        className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-white"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="text-xs text-gray-500 block">Gốc (Gạch ngang)</label>
+                                                    <input 
+                                                        type="number" value={pkg.originalCredits || 0} 
+                                                        onChange={(e) => updatePackage(index, 'originalCredits', parseInt(e.target.value))}
+                                                        className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-white"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-xs text-gray-500 block mb-1">Danh sách quyền lợi (Mỗi dòng 1 ý)</label>
+                                                <textarea 
+                                                    value={pkg.features.join('\n')}
+                                                    onChange={(e) => updatePackageFeatures(index, e.target.value)}
+                                                    className="w-full bg-[#222] border border-gray-600 rounded p-2 text-sm text-gray-300 h-32"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     )}
 

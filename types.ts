@@ -100,6 +100,27 @@ export interface ProcessedImage {
   isSelected: boolean;
 }
 
+// --- Pricing Interfaces ---
+export interface PricingPackage {
+    id: string;
+    name: string;
+    price: string; // Display string e.g. "49.000"
+    originalPrice?: string; // e.g. "600" (credits) or old price
+    credits: number;
+    originalCredits?: number; // for strikethrough effect
+    features: string[];
+    theme: 'blue' | 'purple' | 'green' | 'orange';
+    tag?: string; // e.g. "BONUS", "EXTRA CREDIT"
+    isPopular?: boolean;
+    buttonText?: string;
+}
+
+export interface PricingConfig {
+    bannerTitle: string;
+    bannerSubtitle: string;
+    packages: PricingPackage[];
+}
+
 // --- Gommo AI Interfaces (Updated per API List) ---
 
 export interface GommoRatio {
