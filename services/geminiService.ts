@@ -239,7 +239,7 @@ export const generateStyledImage = async (
             preserveSubjectPosition, preservePose, preserveComposition, preserveFocalLength, preserveAspectRatio, disableForeground, originalImageCompatibility,
             preserveFaceDetail, // Extract new setting
             keepOriginalOutfit, minimalCustomization, enableUpscale, restorationCustomPrompt,
-            model, aspectRatio, imageSize
+            model, aspectRatio, imageSize, referenceImage
         } = settings;
         
         let originalBase64 = await resizeImage(originalFile);
@@ -326,9 +326,34 @@ export const generateStyledImage = async (
             keepOriginalOutfit ? "9. OUTFIT LOCK: Keep the subject's original clothing 100% unchanged. Do not alter color or style of clothes." : ""
         ].filter(Boolean).join("\n");
 
+        let refInstruction = "";
+        
+        // Prepare parts array with Main Subject Image first
+        const parts: Part[] = [{ inlineData: { mimeType, data: originalBase64 } }];
+
+        // Attach Reference Image if present (Hack Concept Pro feature)
+        if (referenceImage) {
+            const refBase64 = await resizeImage(referenceImage);
+            const refMime = referenceImage.type || 'image/jpeg';
+            parts.push({
+                inlineData: { mimeType: refMime, data: refBase64 }
+            });
+            refInstruction = `
+            INPUT CONTEXT:
+            - The FIRST image is the SUBJECT (Person/Object to preserve).
+            - The SECOND image is the BACKGROUND/STYLE REFERENCE.
+            
+            INSTRUCTION: 
+            Extract the background environment, lighting, and atmosphere from the SECOND image and merge the SUBJECT from the FIRST image into it.
+            Replace the background of the first image with the scene from the second image. Match lighting and perspective.
+            `;
+        }
+
         const finalPrompt = `
         ROLE: Expert Image Compositor & Retoucher.
         TASK: BACKGROUND REPLACEMENT & RELIGHTING.
+        ${refInstruction}
+        
         SUPREME COMMANDS:
         ${commands}
         ${userRefinementPrompt}
@@ -347,9 +372,11 @@ export const generateStyledImage = async (
         LIGHTING: ${specificLightingPrompts}
         `;
 
+        parts.push({ text: finalPrompt });
+
         const response = await ai.models.generateContent({
           model: effectiveModel,
-          contents: { parts: [{ inlineData: { mimeType, data: originalBase64 } }, { text: finalPrompt }] },
+          contents: { parts: parts },
           config: generationConfig
         });
 

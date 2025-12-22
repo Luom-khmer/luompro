@@ -401,6 +401,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const handleRefUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
+
+      // --- CHANGED LOGIC HERE ---
+      // Nếu là Hack Concept Pro, bỏ qua Modal phân tích, lưu trực tiếp ảnh vào Reference
+      if (viewMode === 'hack-concept') {
+          const previewUrl = URL.createObjectURL(file);
+          onSettingsChange({ 
+              referenceImage: file, 
+              referenceImagePreview: previewUrl 
+          });
+          e.target.value = ''; // Reset input
+          return;
+      }
+
+      // Logic cũ cho Fake Concept (Hiện modal)
       setPendingReferenceFile(file);
       setShowAnalysisModal(true);
       e.target.value = '';
@@ -609,9 +623,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const renderReferenceImageSection = () => (
-    <div className="border border-gray-700 rounded-lg bg-[#1a1a1a]">
+    <div className={`border rounded-lg bg-[#1a1a1a] ${viewMode === 'hack-concept' ? 'border-purple-500/50' : 'border-gray-700'}`}>
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsRefImageOpen(!isRefImageOpen)}>
-            <h3 className="font-semibold text-gray-200 text-lg">Ảnh tham chiếu (Style)</h3>
+            <h3 className={`font-semibold text-lg ${viewMode === 'hack-concept' ? 'text-purple-300' : 'text-gray-200'}`}>
+                {viewMode === 'hack-concept' ? "Ảnh Mẫu (Hack Nền)" : "Ảnh tham chiếu (Style)"}
+            </h3>
             <div className="absolute right-5">{isRefImageOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}</div>
         </div>
         {isRefImageOpen && (
@@ -620,20 +636,40 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <div className="relative group w-full flex justify-center bg-black/40 rounded-lg border border-gray-600 overflow-hidden">
                         <img src={settings.referenceImagePreview} alt="Reference" className="w-full h-auto max-h-[400px] object-contain"/>
                         <button onClick={clearReferenceImage} className="absolute top-2 right-2 bg-black/60 hover:bg-red-600 p-1.5 rounded-full text-white transition-colors z-20"><TrashIcon className="w-5 h-5" /></button>
-                        <div className="absolute bottom-2 right-2 flex gap-2 z-20">
-                            <button onClick={() => { setPendingReferenceFile(settings.referenceImage as File); setShowAnalysisModal(true); }} disabled={isAnalyzing} className="bg-black/60 hover:bg-sky-600 text-white text-sm px-3 py-1.5 rounded backdrop-blur flex items-center gap-1 transition-colors border border-gray-500/50">
-                                {isAnalyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
-                                {isAnalyzing ? '...' : 'Trích xuất lại'}
-                            </button>
-                        </div>
+                        
+                        {/* Only show 'Extract' button if NOT in Hack Concept Pro mode */}
+                        {viewMode !== 'hack-concept' && (
+                            <div className="absolute bottom-2 right-2 flex gap-2 z-20">
+                                <button onClick={() => { setPendingReferenceFile(settings.referenceImage as File); setShowAnalysisModal(true); }} disabled={isAnalyzing} className="bg-black/60 hover:bg-sky-600 text-white text-sm px-3 py-1.5 rounded backdrop-blur flex items-center gap-1 transition-colors border border-gray-500/50">
+                                    {isAnalyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
+                                    {isAnalyzing ? '...' : 'Trích xuất lại'}
+                                </button>
+                            </div>
+                        )}
+                        {/* Hack Concept Pro Badge */}
+                        {viewMode === 'hack-concept' && (
+                            <div className="absolute bottom-2 left-2 flex gap-2 z-20">
+                                <span className="bg-purple-600/80 text-white text-xs font-bold px-2 py-1 rounded backdrop-blur">
+                                    Đính kèm tạo ảnh
+                                </span>
+                            </div>
+                        )}
                     </div>
                 ) : (
-                    <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 relative overflow-hidden ${isAnalyzing ? 'bg-gray-800 border-sky-500/50' : isDraggingRef ? 'bg-gray-800 border-sky-400 scale-[1.02]' : 'bg-[#222] border-gray-600 hover:bg-gray-800 hover:border-gray-500'}`} onDragOver={(e) => { e.preventDefault(); setIsDraggingRef(true); }} onDragLeave={(e) => { e.preventDefault(); setIsDraggingRef(false); }} onDrop={(e) => { e.preventDefault(); setIsDraggingRef(false); const f = e.dataTransfer.files?.[0]; if(f) { setPendingReferenceFile(f); setShowAnalysisModal(true); } }}>
+                    <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 relative overflow-hidden ${isAnalyzing ? 'bg-gray-800 border-sky-500/50' : isDraggingRef ? 'bg-gray-800 border-sky-400 scale-[1.02]' : 'bg-[#222] border-gray-600 hover:bg-gray-800 hover:border-gray-500'}`} onDragOver={(e) => { e.preventDefault(); setIsDraggingRef(true); }} onDragLeave={(e) => { e.preventDefault(); setIsDraggingRef(false); }} onDrop={(e) => { e.preventDefault(); setIsDraggingRef(false); const f = e.dataTransfer.files?.[0]; if(f) { 
+                        // Inline drop logic matching handleRefUpload
+                        if(viewMode === 'hack-concept') {
+                            const previewUrl = URL.createObjectURL(f);
+                            onSettingsChange({ referenceImage: f, referenceImagePreview: previewUrl });
+                        } else {
+                            setPendingReferenceFile(f); setShowAnalysisModal(true); 
+                        }
+                    }}}>
                         {isAnalyzing ? (
                             <div className="flex flex-col items-center text-sky-500 gap-2"><ArrowPathIcon className="w-8 h-8 animate-spin" /><span className="text-base font-medium">Đang xử lý...</span></div>
                         ) : (
                             <div className="flex flex-col items-center text-gray-400 gap-2 pointer-events-none">
-                                <PhotoIcon className={`w-8 h-8 ${isDraggingRef ? 'text-sky-400' : ''}`} /><span className={`text-base ${isDraggingRef ? 'text-sky-400 font-medium' : ''}`}>{isDraggingRef ? 'Thả ảnh vào đây' : 'Tải lên Style Reference'}</span>
+                                <PhotoIcon className={`w-8 h-8 ${isDraggingRef ? 'text-sky-400' : ''}`} /><span className={`text-base ${isDraggingRef ? 'text-sky-400 font-medium' : ''}`}>{isDraggingRef ? 'Thả ảnh vào đây' : 'Tải lên Ảnh mẫu'}</span>
                             </div>
                         )}
                         <input type="file" accept="image/*" className="hidden" onChange={handleRefUpload} disabled={isAnalyzing} />
@@ -801,17 +837,37 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><DocumentMagnifyingGlassIcon className="w-6 h-6 text-sky-500" /> Chọn chế độ phân tích</h3>
                 </div>
                 <div className="p-6 grid gap-4">
+                    {/* HACK CONCEPT PRO MODE: Prioritize Background Analysis */}
+                    {viewMode === 'hack-concept' ? (
+                        <>
+                            <button onClick={() => handleAnalysisSelection('background')} className="flex flex-col gap-1 p-4 rounded-lg bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500 hover:border-emerald-400 transition-all text-left group shadow-lg ring-1 ring-emerald-500/30">
+                                <span className="text-emerald-100 font-bold text-lg flex items-center justify-between uppercase">
+                                    Hack Bối Cảnh Pro
+                                    <BoltIcon className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
+                                </span>
+                                <span className="text-xs text-emerald-300/80 mt-1 font-medium">Lấy toàn bộ bối cảnh, ánh sáng, góc máy từ ảnh mẫu (Bỏ qua nhân vật)</span>
+                            </button>
+
+                            <div className="h-px bg-gray-700 my-2"></div>
+                            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-center block">Tùy chọn khác</span>
+                        </>
+                    ) : null}
+
                     <button onClick={() => handleAnalysisSelection('basic')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-sky-500 transition-all text-left group">
                         <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Cơ bản<SparklesIcon className="w-5 h-5 text-gray-500 group-hover:text-sky-400" /></span>
                     </button>
+                    
                     <button onClick={() => handleAnalysisSelection('deep')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-purple-500 transition-all text-left group">
                         <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Chuyên sâu<EyeIcon className="w-5 h-5 text-gray-500 group-hover:text-purple-400" /></span>
                     </button>
-                    {/* New Background Analysis Option */}
-                    <button onClick={() => handleAnalysisSelection('background')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-emerald-500 transition-all text-left group">
-                        <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Nền<PhotoIcon className="w-5 h-5 text-gray-500 group-hover:text-emerald-400" /></span>
-                        <span className="text-xs text-gray-400">Chỉ lấy thông tin bối cảnh, bỏ qua nhân vật</span>
-                    </button>
+
+                    {/* Standard Mode: Show Background option normally */}
+                    {viewMode !== 'hack-concept' && (
+                        <button onClick={() => handleAnalysisSelection('background')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-emerald-500 transition-all text-left group">
+                            <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Nền<PhotoIcon className="w-5 h-5 text-gray-500 group-hover:text-emerald-400" /></span>
+                            <span className="text-xs text-gray-400">Chỉ lấy thông tin bối cảnh, bỏ qua nhân vật</span>
+                        </button>
+                    )}
                 </div>
                 <div className="p-4 bg-gray-900 border-t border-gray-700 flex justify-end">
                     <button onClick={() => { setShowAnalysisModal(false); setPendingReferenceFile(null); }} className="px-4 py-2 text-gray-300 hover:text-white font-medium hover:underline">Hủy bỏ</button>
@@ -827,8 +883,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
         <div className="h-full bg-[#111] border-l border-gray-800 p-4 flex flex-col gap-4 overflow-y-auto text-lg custom-scrollbar">
             <div className="flex items-center justify-center py-4 border-b border-gray-800 mb-2">
-                <h2 className={`text-xl font-bold uppercase tracking-wide text-blue-500 text-center`}>
-                    Fake Concept
+                <h2 className={`text-xl font-bold uppercase tracking-wide text-center ${viewMode === 'hack-concept' ? 'text-purple-500' : 'text-blue-500'}`}>
+                    {viewMode === 'hack-concept' ? 'HACK CONCEPT PRO' : 'FAKE CONCEPT'}
                 </h2>
             </div>
 
@@ -841,11 +897,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     
                     {renderSizeConfig()}
                     {renderReferenceImageSection()}
-                    {renderQualitySection()}
+                    
+                    {/* Hide Quality Section in Hack Concept Pro */}
+                    {viewMode !== 'hack-concept' && renderQualitySection()}
+                    
                     {renderPromptSection()}
-                    {renderOriginalOptions()}
-                    {renderVisualEffects()}
-                    {renderLightingEffects()}
+                    
+                    {/* Hide Advanced Options in Hack Concept Pro */}
+                    {viewMode !== 'hack-concept' && (
+                        <>
+                            {renderOriginalOptions()}
+                            {renderVisualEffects()}
+                            {renderLightingEffects()}
+                        </>
+                    )}
+                    
                     {renderGallery()}
                 </>
             ) : (

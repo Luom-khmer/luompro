@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
-import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels } from './services/gommoService';
+import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
 import { ProcessedImage, GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, PricingPackage } from './types';
 import { initDB, saveImageToGallery, getGalleryImages } from './services/galleryService';
 import { APP_CONFIG } from './config';
@@ -19,7 +18,7 @@ import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
 
-import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon, SparklesIcon, BoltIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -97,9 +96,13 @@ const App: React.FC = () => {
       }
   }, [isAdmin, currentView]);
 
-  // --- CONCEPT MODE STATE (ONLY) ---
+  // --- CONCEPT MODE STATE (Fake Concept) ---
   const [conceptImages, setConceptImages] = useState<ProcessedImage[]>([]);
   const [conceptSettings, setConceptSettings] = useState<GenerationSettings>({ ...DEFAULT_GENERATION_SETTINGS });
+
+  // --- HACK CONCEPT MODE STATE (Independent Data) ---
+  const [hackConceptImages, setHackConceptImages] = useState<ProcessedImage[]>([]);
+  const [hackConceptSettings, setHackConceptSettings] = useState<GenerationSettings>({ ...DEFAULT_GENERATION_SETTINGS });
 
   const [galleryItems, setGalleryItems] = useState<StoredImage[]>([]);
   const [isImageProcessing, setIsImageProcessing] = useState(false);
@@ -107,6 +110,12 @@ const App: React.FC = () => {
   
   // Lightbox Data
   const [lightboxData, setLightboxData] = useState<{ src: string; originalSrc: string } | null>(null);
+
+  // Helper to get current active state based on view
+  const activeImages = currentView === 'hack-concept' ? hackConceptImages : conceptImages;
+  const setActiveImages = currentView === 'hack-concept' ? setHackConceptImages : setConceptImages;
+  const activeSettings = currentView === 'hack-concept' ? hackConceptSettings : conceptSettings;
+  const setActiveSettings = currentView === 'hack-concept' ? setHackConceptSettings : setConceptSettings;
 
   // --- INITIALIZATION ---
   useEffect(() => {
@@ -238,7 +247,7 @@ const App: React.FC = () => {
           isSelected: defaultSelected
       }));
       
-      setConceptImages(prev => [...prev, ...newImgs]); 
+      setActiveImages(prev => [...prev, ...newImgs]); 
   };
 
   const generateSingleImage = async (file: File, id: string) => {
@@ -249,11 +258,11 @@ const App: React.FC = () => {
       }
 
       // 2. CALCULATE COST
-      const provider = conceptSettings.aiProvider || 'gemini';
+      const provider = activeSettings.aiProvider || 'gemini';
       let estimatedCost = 1; // Default Gemini Cost
 
       if (provider === 'gommo') {
-          const modelId = conceptSettings.gommoModel || 'google_image_gen_banana_pro';
+          const modelId = activeSettings.gommoModel || 'google_image_gen_banana_pro';
           const modelInfo = gommoModelsCache.find(m => m.model === modelId);
           // Fix: Check strictly for number type to allow 0 cost
           if (modelInfo && typeof modelInfo.price === 'number') {
@@ -267,7 +276,7 @@ const App: React.FC = () => {
       if (userCredits < estimatedCost) {
           alert(`Số dư không đủ! Cần ${estimatedCost} credits, bạn đang có ${userCredits}.\nVui lòng liên hệ Admin để nạp thêm.`);
           // Đánh dấu ảnh là lỗi do thiếu tiền
-          setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: 'Không đủ Credits' } : p));
+          setActiveImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: 'Không đủ Credits' } : p));
           return;
       }
 
@@ -275,14 +284,14 @@ const App: React.FC = () => {
 
       setIsImageProcessing(true);
       // Update status to generating
-      setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'generating', error: undefined } : p));
+      setActiveImages(prev => prev.map(p => p.id === id ? { ...p, status: 'generating', error: undefined } : p));
       
       try {
         let url = '';
         
         // Merge Global Keys
         const finalSettings = { 
-            ...conceptSettings, 
+            ...activeSettings, 
             apiKey: globalApiKey,
             gommoApiKey: globalGommoKey
         };
@@ -314,6 +323,35 @@ const App: React.FC = () => {
              let mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
              const fullBase64 = `data:${mimeType};base64,${base64Data}`;
 
+             // --- HACK CONCEPT PRO CONFIG ---
+             // In "Hack Concept Pro" mode:
+             // 1. Each generation gets a UNIQUE project_id (effectively a new session).
+             // 2. The Main Image (Input) is mapped to Subject 1 (Index 0).
+             // 3. The Reference Image (Hack Background) is mapped to Subject 2 (Index 1).
+             let projectId = 'default';
+             let subjectsPayload: any[] | undefined = undefined;
+
+             if (currentView === 'hack-concept') {
+                 // Mỗi lần tạo ảnh là một project_id mới duy nhất
+                 projectId = crypto.randomUUID(); 
+                 
+                 subjectsPayload = [];
+                 
+                 // Ảnh 1: Ảnh chính (được chọn để tạo) -> Subject 1
+                 subjectsPayload.push({
+                     data: fullBase64
+                 });
+
+                 // Ảnh 2: Ảnh mẫu hack nền (nếu có) -> Subject 2
+                 if (finalSettings.referenceImage) {
+                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.9);
+                     const refMime = finalSettings.referenceImage.type || 'image/jpeg';
+                     subjectsPayload.push({
+                         data: `data:${refMime};base64,${refBase64Raw}`
+                     });
+                 }
+             }
+
              // Start Generation (Async)
              const genRes = await generateGommoImage(
                  finalSettings.gommoApiKey, 
@@ -323,17 +361,34 @@ const App: React.FC = () => {
                     editImage: true, 
                     base64Image: fullBase64, 
                     ratio: gommoRatio,
-                    resolution: gommoResolution // Passed correct resolution here
+                    resolution: gommoResolution,
+                    project_id: projectId,
+                    subjects: subjectsPayload
                  }
              );
 
-             // New API structure check
-             if (genRes.success && genRes.success.imageInfo && genRes.success.imageInfo.url) {
-                 url = genRes.success.imageInfo.url;
-             } else if (genRes.imageInfo?.url) {
-                 url = genRes.imageInfo.url;
-             } else {
-                 throw new Error("Gommo không trả về URL ảnh.");
+             // Handle Response (Support Immediate Success or PENDING)
+             if (genRes.success && genRes.success.imageInfo) {
+                 const info = genRes.success.imageInfo;
+                 if (info.url) {
+                    url = info.url;
+                 } else if (info.id_base) {
+                     // Status is PENDING (PENDING_ACTIVE, PENDING_PROCESSING)
+                     // Poll for result
+                     url = await pollGommoImageCompletion(finalSettings.gommoApiKey, info.id_base);
+                 }
+             } else if (genRes.imageInfo) {
+                 // Fallback flat structure
+                 const info = genRes.imageInfo;
+                 if (info.url) {
+                     url = info.url;
+                 } else if (info.id_base) {
+                     url = await pollGommoImageCompletion(finalSettings.gommoApiKey, info.id_base);
+                 }
+             }
+             
+             if (!url) {
+                 throw new Error("Gommo không trả về URL ảnh sau khi hoàn tất.");
              }
              
              updateGommoCredits();
@@ -353,7 +408,7 @@ const App: React.FC = () => {
             }
         }
 
-        setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'completed', generatedImageUrl: url } : p));
+        setActiveImages(prev => prev.map(p => p.id === id ? { ...p, status: 'completed', generatedImageUrl: url } : p));
         
         // Save to gallery
         const newItem: StoredImage = { id: crypto.randomUUID(), url, timestamp: Date.now() };
@@ -365,30 +420,143 @@ const App: React.FC = () => {
         // Không cần hoàn tiền vì chưa trừ
         
         const errorMessage = e.message || 'Lỗi tạo ảnh';
-        setConceptImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
+        setActiveImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
         alert(`Tạo ảnh thất bại: ${errorMessage}. (Không bị trừ Credits)`);
       } finally {
         setIsImageProcessing(false);
       }
   };
 
+  const handleUpscaleImage = async (item: ProcessedImage) => {
+      if (!currentUser) {
+          alert("Vui lòng đăng nhập để sử dụng tính năng.");
+          return;
+      }
+      
+      if (!globalGommoKey) {
+          alert("Chưa cấu hình Gommo API Key.");
+          return;
+      }
+
+      setIsImageProcessing(true);
+      try {
+          let targetUrl = item.generatedImageUrl;
+          if (!targetUrl) throw new Error("Không tìm thấy ảnh để Upscale");
+
+          // Nếu là base64 (từ Gemini), cần upload lên Gommo trước để lấy URL
+          if (targetUrl.startsWith('data:')) {
+               const base64 = targetUrl.split(',')[1];
+               const uploadRes = await uploadGommoImage(globalGommoKey, base64);
+               if (uploadRes.imageInfo?.url || uploadRes.success?.imageInfo?.url) {
+                   targetUrl = uploadRes.imageInfo?.url || uploadRes.success?.imageInfo?.url;
+               } else {
+                   throw new Error("Lỗi upload ảnh tạm thời để Upscale.");
+               }
+          }
+
+          if (!targetUrl) throw new Error("URL ảnh không hợp lệ.");
+
+          const res = await upscaleGommoImage(globalGommoKey, targetUrl, 'hack-concept-upscale');
+          
+          let newUrl = '';
+          const info = res.imageInfo || (res.success ? res.success.imageInfo : null);
+
+          if (info) {
+               if (info.url) {
+                   newUrl = info.url;
+               } else if (info.id_base) {
+                   // Nếu chưa có URL nhưng có ID, tiến hành Polling
+                   newUrl = await pollGommoImageCompletion(globalGommoKey, info.id_base);
+               }
+          }
+          
+          if (newUrl) {
+               // Thêm ảnh mới vào danh sách
+               const newImage: ProcessedImage = {
+                   id: crypto.randomUUID(),
+                   originalPreviewUrl: item.originalPreviewUrl, // Giữ reference ảnh gốc
+                   generatedImageUrl: newUrl,
+                   status: 'completed',
+                   isSelected: true,
+                   file: item.file
+               };
+               setActiveImages(prev => [newImage, ...prev]);
+               
+               // Cập nhật số dư Gommo (Credits AI) từ response
+               if (res.balancesInfo?.credits_ai) {
+                   setGommoCredits(res.balancesInfo.credits_ai);
+               }
+               
+               // Lưu vào gallery
+               await saveImageToGallery({ id: newImage.id, url: newUrl, timestamp: Date.now() });
+
+               alert("Upscale thành công!");
+          } else {
+               throw new Error(res.message || "Upscale thất bại (Không nhận được URL).");
+          }
+
+      } catch (e: any) {
+          alert("Lỗi Upscale: " + e.message);
+      } finally {
+          setIsImageProcessing(false);
+      }
+  };
+
   // --- GOMMO GALLERY SYNC ---
   const handleSyncGommoGallery = async () => {
-      // Feature not fully supported in new API list provided, but keeping stub
       if (!globalGommoKey) {
           alert("Vui lòng nhập và lưu Gommo Access Token trước khi đồng bộ.");
           return;
       }
       setIsImageProcessing(true);
       try {
-          const response = await fetchGommoImages(globalGommoKey);
-          // If empty array, show alert
-          if (response.data && response.data.length > 0) {
-             // ... sync logic
-             alert("Đồng bộ hoàn tất (Demo Mode: API chưa hỗ trợ list)");
-          } else {
-             alert("Chưa có ảnh nào trên hệ thống hoặc API chưa hỗ trợ.");
+          // Sync multiple projects based on view
+          const projectsToSync = ['default'];
+          
+          // Nếu đang ở Hack Concept Pro, sync thêm folder Upscale để lấy ảnh về
+          if (currentView === 'hack-concept') {
+              projectsToSync.push('hack-concept-upscale');
           }
+
+          let totalSynced = 0;
+          let hasError = false;
+
+          for (const pid of projectsToSync) {
+              try {
+                  const response = await fetchGommoImages(globalGommoKey, pid);
+                  if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+                     const newItems: StoredImage[] = response.data
+                        .filter((img: any) => img.status === 'SUCCESS' && img.url)
+                        .map((img: any) => ({
+                            id: img.id_base || crypto.randomUUID(),
+                            url: img.url,
+                            timestamp: img.created_at ? img.created_at * 1000 : Date.now()
+                        }));
+                     
+                     if (newItems.length > 0) {
+                         for (const item of newItems) {
+                             await saveImageToGallery(item);
+                         }
+                         totalSynced += newItems.length;
+                     }
+                  }
+              } catch (e) {
+                  console.warn(`Sync failed for project ${pid}`, e);
+                  hasError = true;
+              }
+          }
+
+          const updated = await getGalleryImages();
+          setGalleryItems(updated);
+
+          if (totalSynced > 0) {
+              alert(`Đã đồng bộ thành công ${totalSynced} ảnh mới từ hệ thống.`);
+          } else if (hasError) {
+              alert("Có lỗi khi đồng bộ một số thư mục, vui lòng thử lại.");
+          } else {
+              alert("Tất cả ảnh đã được cập nhật (Không có ảnh mới).");
+          }
+
       } catch (error: any) {
           console.error("Sync error", error);
           alert(error.message || "Lỗi đồng bộ thư viện ảnh.");
@@ -434,11 +602,11 @@ const App: React.FC = () => {
 
   // --- BATCH ACTIONS ---
   const handleDeleteAll = () => {
-      if (conceptImages.length > 0) setIsDeleteModalOpen(true);
+      if (activeImages.length > 0) setIsDeleteModalOpen(true);
   };
   
   const confirmDeleteAll = () => {
-      setConceptImages([]);
+      setActiveImages([]);
   };
 
   // Handler when user selects a package from PricingModal
@@ -458,8 +626,8 @@ const App: React.FC = () => {
         {/* APP HEADER */}
         <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative">
              <div className="w-1/3 flex items-center justify-start gap-3">
-                 {/* Only show "Delete All" in Concept Mode */}
-                 {currentView === 'concept' && (
+                 {/* Only show "Delete All" in Concept Modes */}
+                 {(currentView === 'concept' || currentView === 'hack-concept') && (
                     <button 
                         onClick={handleDeleteAll}
                         className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-red-600 hover:bg-red-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-red-400 uppercase tracking-wide shadow-sm"
@@ -483,9 +651,26 @@ const App: React.FC = () => {
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-white whitespace-nowrap">
                   LUOM PRO <span className="text-red-600">TOOL AI</span>
                 </h1>
-                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1">
-                    FAKE CONCEPT STUDIO
+                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
+                    {currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 'FAKE CONCEPT STUDIO'}
                 </p>
+                {/* MODE SWITCHER TABS */}
+                {(currentView === 'concept' || currentView === 'hack-concept') && (
+                    <div className="flex gap-2 mt-2 bg-black/40 p-1 rounded-lg border border-gray-800">
+                        <button 
+                            onClick={() => setCurrentView('concept')}
+                            className={`px-4 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-1 ${currentView === 'concept' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                        >
+                            <SparklesIcon className="w-3 h-3" /> FAKE CONCEPT
+                        </button>
+                        <button 
+                            onClick={() => setCurrentView('hack-concept')}
+                            className={`px-4 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-1 ${currentView === 'hack-concept' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
+                        >
+                            <BoltIcon className="w-3 h-3" /> HACK CONCEPT PRO
+                        </button>
+                    </div>
+                )}
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
@@ -573,7 +758,7 @@ const App: React.FC = () => {
                 // ADMIN VIEW
                 <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
             ) : (
-                // CONCEPT VIEW (Standard)
+                // CONCEPT VIEW (Standard & Hack)
                 <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
                     <main className="flex-1 flex flex-col bg-[#0f1012] min-h-0">
                         <div 
@@ -582,7 +767,7 @@ const App: React.FC = () => {
                             onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
                             onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}
                         >
-                            {conceptImages.length === 0 ? (
+                            {activeImages.length === 0 ? (
                                 // EMPTY STATE
                                 <div className="h-full flex flex-col items-center justify-center pb-20">
                                     <label 
@@ -597,7 +782,7 @@ const App: React.FC = () => {
                                         </div>
                                         <div className="relative flex flex-col items-start z-10">
                                             <span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">
-                                                Thêm ảnh Concept
+                                                Thêm ảnh {currentView === 'hack-concept' ? 'Hack Concept' : 'Concept'}
                                             </span>
                                             <span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2">
                                                 <PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP (Kéo thả vào đây)
@@ -609,15 +794,16 @@ const App: React.FC = () => {
                             ) : (
                                 // POPULATED STATE: GRID
                                 <div className={`grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 items-stretch transition-all duration-500`}>
-                                    {conceptImages.map(img => (
+                                    {activeImages.map(img => (
                                         <div key={img.id} className="h-auto">
                                         <ImageCard 
                                             item={img} 
-                                            onToggleSelect={(id) => setConceptImages(p => p.map(x => x.id === id ? { ...x, isSelected: !x.isSelected } : x))}
-                                            onDelete={(id) => setConceptImages(p => p.filter(x => x.id !== id))}
+                                            onToggleSelect={(id) => setActiveImages(p => p.map(x => x.id === id ? { ...x, isSelected: !x.isSelected } : x))}
+                                            onDelete={(id) => setActiveImages(p => p.filter(x => x.id !== id))}
                                             onRegenerate={handleRegenerateImage}
                                             onDoubleClick={() => openLightbox(img)}
                                             onView={() => openLightbox(img)}
+                                            onUpscale={currentView === 'hack-concept' ? handleUpscaleImage : undefined}
                                         />
                                         </div>
                                     ))}
@@ -641,17 +827,17 @@ const App: React.FC = () => {
                     
                     <aside className="w-[400px] shrink-0 border-l border-gray-800 bg-[#111]">
                         <ControlPanel 
-                            settings={{...conceptSettings, apiKey: globalApiKey, gommoApiKey: globalGommoKey}}
+                            settings={{...activeSettings, apiKey: globalApiKey, gommoApiKey: globalGommoKey}}
                             onSettingsChange={(newS) => {
                                 if(newS.apiKey !== undefined) setGlobalApiKey(newS.apiKey);
                                 if(newS.gommoApiKey !== undefined) setGlobalGommoKey(newS.gommoApiKey);
-                                setConceptSettings(prev => ({ ...prev, ...newS }));
+                                setActiveSettings(prev => ({ ...prev, ...newS }));
                             }}
                             isProcessing={isImageProcessing}
                             galleryItems={galleryItems}
                             onSelectFromGallery={handleSelectFromGallery}
                             onSyncGallery={handleSyncGommoGallery}
-                            viewMode={'concept'}
+                            viewMode={currentView}
                             setViewMode={() => {}}
                             isAdmin={isAdmin}
                             onModelsLoaded={handleModelsLoaded}

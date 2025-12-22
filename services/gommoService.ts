@@ -16,9 +16,12 @@ const ENDPOINTS = {
     MODELS: "https://api.gommo.net/ai/models",
     CREATE_VIDEO: "https://api.gommo.net/ai/create-video",
     CHECK_VIDEO: "https://api.gommo.net/ai/video",
+    CHECK_IMAGE: "https://api.gommo.net/ai/image",
     UPLOAD_IMAGE: "https://api.gommo.net/ai/image-upload",
     GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage",
-    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me"
+    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me",
+    UPSCALE: "https://api.gommo.net/api/apps/go-mmo/ai_templates/tools",
+    LIST_IMAGES: "https://api.gommo.net/ai/images" // NEW ENDPOINT
 };
 
 // Helper to create body matching the requirement: 
@@ -67,7 +70,7 @@ const processResponse = async (response: Response) => {
     if (data.error) {
          const msg = (typeof data.error === 'object' && data.error.message) 
             ? data.error.message 
-            : "Gommo API Error";
+            : (typeof data.message === 'string' ? data.message : "Gommo API Error");
          throw new Error(msg);
     }
     
@@ -265,15 +268,107 @@ export const fetchGommoUserInfo = async (accessToken: string): Promise<GommoUser
     }
 };
 
+/**
+ * 7. Check Image Status (New)
+ */
+export const checkGommoImageStatus = async (
+    accessToken: string,
+    idBase: string
+): Promise<any> => {
+    try {
+        const body = createBody(accessToken, { id_base: idBase });
+        const response = await fetch(ENDPOINTS.CHECK_IMAGE, {
+            method: 'POST',
+            body: body
+        });
+        return await processResponse(response);
+    } catch (error) {
+        throw handleGommoError(error);
+    }
+};
+
+/**
+ * 8. Upscale Image (New)
+ */
+export const upscaleGommoImage = async (
+    accessToken: string,
+    imageUrl: string,
+    projectId: string = 'default'
+): Promise<any> => {
+    try {
+        const params = {
+            id_base: 'image_resolution',
+            url: imageUrl,
+            project_id: projectId
+        };
+        const body = createBody(accessToken, params);
+        const response = await fetch(ENDPOINTS.UPSCALE, {
+            method: 'POST',
+            body: body
+        });
+        return await processResponse(response);
+    } catch (error) {
+        throw handleGommoError(error);
+    }
+};
+
 // --- Compatibility & Polling Helpers ---
 
 export const pollGommoImageCompletion = async (
     accessToken: string,
-    idBase: string
+    idBase: string,
+    maxRetries = 60, // ~3 minutes
+    interval = 3000
 ): Promise<string> => {
-    return ""; 
+    let retries = 0;
+    while (retries < maxRetries) {
+        try {
+            const data = await checkGommoImageStatus(accessToken, idBase);
+            // Expected response: { id_base, status, url, ... }
+            const status = data.status;
+
+            if (status === 'SUCCESS') {
+                if (data.url) return data.url;
+                // If SUCCESS but no URL, weird case, might check structure again
+                if (data.imageInfo && data.imageInfo.url) return data.imageInfo.url;
+                throw new Error("Trạng thái SUCCESS nhưng không tìm thấy URL.");
+            } else if (status === 'ERROR') {
+                 throw new Error("Gommo báo lỗi: Tạo ảnh thất bại.");
+            }
+            
+            // If PENDING_ACTIVE or PENDING_PROCESSING, wait and retry
+            
+        } catch (err: any) {
+            console.warn("Polling status error:", err.message);
+            // If it's a critical logic error from API (not network), we might want to throw
+            if (err.message.includes("not found")) {
+                 // Sometimes ID is not immediately available?
+            } else if (err.message.includes("báo lỗi")) {
+                throw err;
+            }
+        }
+
+        await new Promise(r => setTimeout(r, interval));
+        retries++;
+    }
+    throw new Error("Quá thời gian chờ xử lý (Timeout).");
 };
 
-export const fetchGommoImages = async (accessToken: string): Promise<GommoImagesResponse> => {
-    return { data: [] };
+/**
+ * 9. List Images
+ */
+export const fetchGommoImages = async (
+    accessToken: string, 
+    projectId: string = 'default'
+): Promise<GommoImagesResponse> => {
+    try {
+        const body = createBody(accessToken, { project_id: projectId });
+        const response = await fetch(ENDPOINTS.LIST_IMAGES, {
+            method: 'POST',
+            body: body
+        });
+        return await processResponse(response);
+    } catch (error) {
+        throw handleGommoError(error);
+    }
 };

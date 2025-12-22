@@ -88,7 +88,7 @@ export interface StoredImage {
     timestamp: number;
 }
 
-export type ViewMode = 'home' | 'concept' | 'restoration' | 'voice' | 'profile' | 'clothing' | 'painting' | 'admin';
+export type ViewMode = 'home' | 'concept' | 'hack-concept' | 'restoration' | 'voice' | 'profile' | 'clothing' | 'painting' | 'admin';
 
 export interface ProcessedImage {
   id: string;

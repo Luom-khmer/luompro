@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { ProcessedImage } from '../types';
-import { ArrowPathIcon, TrashIcon, ArrowDownTrayIcon, CheckIcon, ScissorsIcon, EyeIcon } from '@heroicons/react/24/outline';
+import { ArrowPathIcon, TrashIcon, ArrowDownTrayIcon, CheckIcon, ScissorsIcon, EyeIcon, ArrowsPointingOutIcon } from '@heroicons/react/24/outline';
 
 interface ImageCardProps {
   item: ProcessedImage;
@@ -12,9 +12,10 @@ interface ImageCardProps {
   onDoubleClick?: () => void;
   onCrop?: (item: ProcessedImage) => void;
   onView?: () => void;
+  onUpscale?: (item: ProcessedImage) => void;
 }
 
-const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, onRegenerate, isFullHeight, onDoubleClick, onCrop, onView }) => {
+const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, onRegenerate, isFullHeight, onDoubleClick, onCrop, onView, onUpscale }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false); // State for right-click comparison
   
@@ -156,7 +157,19 @@ const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, o
             {isGenerating ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : "Tạo Ảnh"}
         </button>
 
-        {/* 2. Crop Button (Gray/Purple) */}
+        {/* 2. Upscale Button (Purple) - NEW */}
+        {onUpscale && isCompleted && (
+            <button 
+                onClick={(e) => { e.stopPropagation(); onUpscale(item); }}
+                className="w-10 bg-purple-900/50 hover:bg-purple-600 text-purple-300 hover:text-white transition-colors py-2.5 rounded shadow-md flex items-center justify-center border border-purple-500/30"
+                title="Upscale (Nâng cấp ảnh)"
+                disabled={isGenerating}
+            >
+                <ArrowsPointingOutIcon className="w-5 h-5" />
+            </button>
+        )}
+
+        {/* 3. Crop Button (Gray/Purple) */}
         {onCrop && (
             <button 
                 onClick={(e) => { e.stopPropagation(); onCrop(item); }}
@@ -168,7 +181,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, o
             </button>
         )}
         
-        {/* 3. View Button (Gray/Blue) - NEW */}
+        {/* 4. View Button (Gray/Blue) */}
         <button 
             onClick={(e) => { e.stopPropagation(); onView && onView(); }}
             className="w-10 bg-zinc-700 hover:bg-sky-600 text-white transition-colors py-2.5 rounded shadow-md flex items-center justify-center"
@@ -178,7 +191,7 @@ const ImageCard: React.FC<ImageCardProps> = ({ item, onToggleSelect, onDelete, o
             <EyeIcon className="w-5 h-5" />
         </button>
 
-        {/* 4. Download Button (Blue) - UPDATED */}
+        {/* 5. Download Button (Blue) */}
         <div className="flex-1">
             {isCompleted ? (
                 <button 
