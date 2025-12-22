@@ -585,7 +585,12 @@ const App: React.FC = () => {
                             {conceptImages.length === 0 ? (
                                 // EMPTY STATE
                                 <div className="h-full flex flex-col items-center justify-center pb-20">
-                                    <label className="group relative w-full max-w-3xl h-48 border border-dashed border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl hover:shadow-sky-500/10 overflow-hidden">
+                                    <label 
+                                        className={`group relative w-full max-w-3xl h-48 border border-dashed rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl overflow-hidden ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] hover:shadow-sky-500/10'}`}
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+                                        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}
+                                    >
                                         <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                         <div className="relative w-16 h-16 rounded-full bg-[#222] group-hover:bg-sky-500/20 border border-gray-700 group-hover:border-sky-500 flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg">
                                             <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-sky-400 transition-colors" />
@@ -595,7 +600,7 @@ const App: React.FC = () => {
                                                 Thêm ảnh Concept
                                             </span>
                                             <span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2">
-                                                <PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP
+                                                <PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP (Kéo thả vào đây)
                                             </span>
                                         </div>
                                         <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
@@ -617,8 +622,11 @@ const App: React.FC = () => {
                                         </div>
                                     ))}
                                     <label 
-                                    className="border-2 border-dashed border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500 rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px]"
-                                    title="Thêm ảnh mới"
+                                        className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px] ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500'}`}
+                                        title="Thêm ảnh mới"
+                                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }}
+                                        onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }}
+                                        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}
                                     >
                                         <div className="bg-gray-800 group-hover:bg-gray-700 p-4 rounded-full transition-colors mb-4">
                                             <PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-white" />
