@@ -62,7 +62,10 @@ const processResponse = async (response: Response) => {
     if (!response.ok) {
         // Xử lý lỗi 524 Timeout từ Cloudflare
         if (response.status === 524) {
-            throw new Error("Lỗi Timeout (524): Proxy không nhận được phản hồi từ Gommo. Vui lòng cập nhật code Worker (Xóa header Host) hoặc thử lại sau.");
+            throw new Error("Lỗi 524 (Timeout): Ảnh tải lên quá nặng hoặc Gommo phản hồi chậm. Vui lòng thử lại với ảnh nhỏ hơn hoặc thử lại sau.");
+        }
+        if (response.status === 429) {
+            throw new Error("Lỗi 429 (Too Many Requests): Hệ thống đang quá tải, vui lòng chờ vài phút.");
         }
 
         let errorMessage = `HTTP Error ${response.status}`;

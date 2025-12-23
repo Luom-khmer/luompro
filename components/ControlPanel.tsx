@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
@@ -100,8 +99,8 @@ const LIGHTING_PROMPTS: Record<string, string> = {
   "Vệt sáng ngang": "ÁNH SÁNG: Chùm sáng ngang qua khung hình"
 };
 
-const GEMINI_MODELS = [
-    { id: 'gemini-2.5-flash-image', label: 'Nano Banana (Miễn phí)' },
+const BODY_LIGHTING_OPTIONS = [
+    "Vai trái", "Vai phải", "Đường viền cổ áo", "Lưng", "Sống lưng", "Vành eo", "Vành hông trái", "Vành hông phải"
 ];
 
 // Fallback options if model doesn't specify
@@ -147,30 +146,29 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [gommoError, setGommoError] = useState<string | null>(null);
 
   // --- TOP LEVEL HOOKS FOR MODEL & RATIO LOGIC ---
-  const isGommoProvider = settings.aiProvider === 'gommo';
+  const isGommoProvider = true; // FORCE GOMMO ALWAYS FOR UI
   const hasProxy = !!APP_CONFIG.GOMMO_PROXY_URL;
   
   const activeGommoModel = React.useMemo(() => {
-     if (!isGommoProvider) return null;
      return gommoModelsList.find(m => m.model === settings.gommoModel) || null;
-  }, [isGommoProvider, gommoModelsList, settings.gommoModel]);
+  }, [gommoModelsList, settings.gommoModel]);
 
   const activeRatios = React.useMemo(() => {
-      if (isGommoProvider && activeGommoModel && activeGommoModel.ratios) {
+      if (activeGommoModel && activeGommoModel.ratios) {
           return activeGommoModel.ratios.map(r => r.name);
       }
       return ASPECT_RATIO_OPTIONS;
-  }, [isGommoProvider, activeGommoModel]);
+  }, [activeGommoModel]);
 
-  // Validate Aspect Ratio Effect (Always run, unconditional)
+  // Validate Aspect Ratio Effect
   useEffect(() => {
-      if (isGommoProvider && activeRatios.length > 0 && !activeRatios.includes(settings.aspectRatio)) {
+      if (activeRatios.length > 0 && !activeRatios.includes(settings.aspectRatio)) {
           const fallback = activeRatios.find(r => r.includes('1:1')) || activeRatios[0];
           if (fallback && fallback !== settings.aspectRatio) {
               onSettingsChange({ aspectRatio: fallback });
           }
       }
-  }, [isGommoProvider, activeRatios, settings.aspectRatio]);
+  }, [activeRatios, settings.aspectRatio]);
 
   // Validate API Key changes
   useEffect(() => {
@@ -180,7 +178,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // Initial Load for Gommo
   useEffect(() => {
       let isMounted = true;
-      if (settings.aiProvider === 'gommo' && settings.gommoApiKey) {
+      if (settings.gommoApiKey) {
           if (!gommoConnected && !isLoadingGommoModels) {
                if (gommoModelsList.length === 0) {
                    handleSaveAndTestGommoToken();
@@ -188,7 +186,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           }
       }
       return () => { isMounted = false; };
-  }, [settings.aiProvider]);
+  }, [settings.gommoApiKey]); // Added dependency to re-check when key changes
 
   // --- Handlers ---
 
@@ -222,7 +220,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               if (!currentExists && models.length > 0) {
                   onSettingsChange({ gommoModel: models[0].model });
               }
-              // Quiet success, only update UI state
           } else {
               throw new Error("Không lấy được danh sách Model (Danh sách trống).");
           }
@@ -256,7 +253,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const formatAutoPrompt = (content: string) => {
-      // Nếu content đã bắt đầu bằng cụm từ chỉ định (từ Phân tích nền), giữ nguyên
       if (content.toLowerCase().startsWith("thay đổi nền")) {
           return `${content}\n\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
       }
@@ -267,18 +263,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const updatePromptWithTag = (prompt: string, tag: string, add: boolean): string => {
       let current = prompt || "";
       if (add) {
-          // Thêm tag nếu chưa có
           if (!current.includes(tag)) {
               return current.trim().length > 0 ? `${current.trim()}\n${tag}` : tag;
           }
           return current;
       } else {
-          // Xóa tag và làm sạch dòng trống
           return current.split('\n').filter(line => line.trim() !== tag).join('\n').trim();
       }
   };
-
-  const BODY_LIGHTING_OPTIONS = ["Vai trái", "Vai phải", "Đường viền cổ áo", "Lưng", "Sống lưng", "Vành eo", "Vành hông trái", "Vành hông phải"];
 
   const handleLightingChange = (effect: string) => {
     const currentEffects = settings.lightingEffects || [];
@@ -293,7 +285,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         isAdding = true;
     }
 
-    // Cập nhật Prompt
     const tag = LIGHTING_PROMPTS[effect];
     let newPrompt = settings.userPrompt;
     if (tag) {
@@ -304,19 +295,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleWeatherChange = (opt: WeatherOption) => {
-    // Nếu chọn lại mục đang active -> tắt (về None)
     const isSame = settings.weather === opt;
     const newWeather = isSame ? WeatherOption.NONE : opt;
     
     let newPrompt = settings.userPrompt;
 
-    // 1. Xóa prompt của weather cũ (nếu không phải None)
     if (settings.weather !== WeatherOption.NONE) {
         const oldTag = WEATHER_PROMPTS[settings.weather];
         if (oldTag) newPrompt = updatePromptWithTag(newPrompt, oldTag, false);
     }
 
-    // 2. Thêm prompt của weather mới (nếu không phải None)
     if (newWeather !== WeatherOption.NONE) {
         const newTag = WEATHER_PROMPTS[newWeather];
         if (newTag) newPrompt = updatePromptWithTag(newPrompt, newTag, true);
@@ -326,7 +314,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleBlurChange = (val: number) => {
-      // 1. Xác định nội dung mô tả dựa trên giá trị f-stop (val)
       let blurDescription = "";
       if (val <= 3.5) {
           blurDescription = "ĐỘ MỜ: Xóa phông mạnh (Strong Bokeh), nền mờ ảo, nổi bật chủ thể";
@@ -336,27 +323,20 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           blurDescription = "ĐỘ MỜ: Rõ nét toàn cảnh (Sharp Background), lấy nét sâu";
       }
 
-      // 2. Xử lý chuỗi Prompt: Xóa dòng "ĐỘ MỜ:" cũ (nếu có) để tránh trùng lặp
       let currentPrompt = settings.userPrompt || "";
       const lines = currentPrompt.split('\n').filter(line => !line.trim().startsWith("ĐỘ MỜ:"));
-      
-      // 3. Thêm dòng mô tả mới vào cuối
       lines.push(blurDescription);
-      
       const newPrompt = lines.join('\n').trim();
 
       onSettingsChange({ blurAmount: val, userPrompt: newPrompt });
   };
 
-  const handleBlurCommit = () => {
-     // No-op for now, already updated state
-  };
+  const handleBlurCommit = () => {};
 
   const handleOptionToggle = (key: keyof GenerationSettings, label: string) => {
-      const currentValue = !!settings[key]; // ép kiểu boolean cho chắc chắn
+      const currentValue = !!settings[key];
       const newValue = !currentValue;
       
-      // Logic update Prompt
       const promptText = OPTION_PROMPTS[key as string];
       let newPrompt = settings.userPrompt;
 
@@ -404,19 +384,16 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // --- CHANGED LOGIC HERE ---
-      // Nếu là Hack Concept Pro, bỏ qua Modal phân tích, lưu trực tiếp ảnh vào Reference
       if (viewMode === 'hack-concept') {
           const previewUrl = URL.createObjectURL(file);
           onSettingsChange({ 
               referenceImage: file, 
               referenceImagePreview: previewUrl 
           });
-          e.target.value = ''; // Reset input
+          e.target.value = '';
           return;
       }
 
-      // Logic cũ cho Fake Concept (Hiện modal)
       setPendingReferenceFile(file);
       setShowAnalysisModal(true);
       e.target.value = '';
@@ -465,44 +442,21 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
   );
 
-  const renderServiceSelection = () => (
-      <div className="mb-4">
-          <div className="flex justify-between items-center mb-2">
-            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Nguồn AI xử lý</label>
-            {isGommoProvider && hasProxy && (
-                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-teal-900/30 border border-teal-500/30 rounded text-[10px] text-teal-400 font-bold animate-pulse">
-                    <ShieldCheckIcon className="w-3 h-3" />
-                    Proxy Active
-                </div>
-            )}
-          </div>
-          <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700">
-             <button onClick={() => onSettingsChange({ aiProvider: 'gemini' })} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${settings.aiProvider === 'gemini' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <GlobeAltIcon className="w-4 h-4" /> Google API
-             </button>
-             <button onClick={() => onSettingsChange({ aiProvider: 'gommo' })} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${settings.aiProvider === 'gommo' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <ServerStackIcon className="w-4 h-4" /> Aivideoauto
-             </button>
-          </div>
-      </div>
-  );
-
+  // REMOVED SERVICE SELECTION TO FORCE GOMMO USAGE
+  
   const renderKeysTabContent = () => (
       <div className="space-y-6 animate-fade-in">
-           {/* Section 1: Google Gemini Key */}
+           {/* Section 1: Google Gemini Key - STILL NEEDED FOR ANALYSIS */}
            <div className="border border-indigo-500/30 rounded-lg p-4 bg-[#1a1a1a]">
                <div className="flex justify-between items-center mb-3">
-                   <h3 className="font-bold text-indigo-400 flex items-center gap-2 uppercase text-sm"><CpuChipIcon className="w-5 h-5"/> Google API Key</h3>
+                   <h3 className="font-bold text-indigo-400 flex items-center gap-2 uppercase text-sm"><CpuChipIcon className="w-5 h-5"/> Google API Key (Dùng cho Phân Tích)</h3>
                    {keyConnected && <span className="text-[10px] bg-indigo-900/50 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30">Đã lưu</span>}
                </div>
 
-               {/* ADDED: Instructions for getting key */}
                <div className="mb-3 p-3 bg-indigo-900/10 border border-indigo-500/20 rounded text-xs text-gray-300">
                     <p className="flex items-start gap-2">
                         <InformationCircleIcon className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                        <span>
-                            Chưa có Key? Truy cập <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline font-bold">Google AI Studio</a>, đăng nhập và nhấn "Create API key". Copy key dán vào bên dưới.
-                        </span>
+                        <span>Key này chỉ dùng để <strong>Phân Tích ảnh mẫu</strong> và tạo Prompt. Không dùng để tạo ảnh.</span>
                     </p>
                </div>
 
@@ -516,102 +470,83 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                {keyError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {keyError}</p>}
            </div>
 
-           {/* Section 2: Gommo / Aivideoauto Token - ONLY VISIBLE TO ADMIN */}
-           {isAdmin && (
-               <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
-                    <div className="p-4 border-b border-gray-800/50 bg-black/20">
-                         <div className="flex items-center justify-between mb-1">
-                             <div className="flex items-center gap-2">
-                                <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
-                                <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token</h3>
-                                {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
-                             </div>
-                             {/* Proxy Status Indicator in Key Tab */}
-                             {hasProxy ? (
-                                 <span className="text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
-                                     <ShieldCheckIcon className="w-3 h-3" /> Proxy OK
-                                 </span>
-                             ) : (
-                                 <span className="text-[10px] text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-500/30 flex items-center gap-1">
-                                     <ExclamationCircleIcon className="w-3 h-3" /> No Proxy
-                                 </span>
-                             )}
+           {/* Section 2: Gommo / Aivideoauto Token */}
+           <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
+                <div className="p-4 border-b border-gray-800/50 bg-black/20">
+                     <div className="flex items-center justify-between mb-1">
+                         <div className="flex items-center gap-2">
+                            <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
+                            <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token (Tạo Ảnh)</h3>
+                            {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
                          </div>
-                    </div>
-                    <div className="p-4">
-                         <div className="flex flex-col gap-3">
-                              <div className="relative">
-                                  <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
-                                  {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
-                              </div>
-                              {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
-                              <div className="flex flex-col gap-2">
-                                  <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
-                                      {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
-                                      {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
-                                  </button>
-                              </div>
-                              {hasProxy && (
-                                  <p className="text-[10px] text-gray-500 text-center mt-1">
-                                      Kết nối an toàn qua: <span className="text-gray-400 font-mono">{APP_CONFIG.GOMMO_PROXY_URL?.split('//')[1]?.split('.')[0]}...</span>
-                                  </p>
-                              )}
-                         </div>
-                    </div>
-               </div>
-           )}
+                         {hasProxy ? (
+                             <span className="text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
+                                 <ShieldCheckIcon className="w-3 h-3" /> Proxy OK
+                             </span>
+                         ) : (
+                             <span className="text-[10px] text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-500/30 flex items-center gap-1">
+                                 <ExclamationCircleIcon className="w-3 h-3" /> No Proxy
+                             </span>
+                         )}
+                     </div>
+                </div>
+                <div className="p-4">
+                     <div className="flex flex-col gap-3">
+                          <div className="relative">
+                              <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
+                              {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
+                          </div>
+                          {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
+                          <div className="flex flex-col gap-2">
+                              <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
+                                  {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
+                                  {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
+                              </button>
+                          </div>
+                          {hasProxy && (
+                              <p className="text-[10px] text-gray-500 text-center mt-1">
+                                  Kết nối an toàn qua: <span className="text-gray-400 font-mono">{APP_CONFIG.GOMMO_PROXY_URL?.split('//')[1]?.split('.')[0]}...</span>
+                              </p>
+                          )}
+                     </div>
+                </div>
+           </div>
       </div>
   );
 
   const renderModelList = () => {
-      if (settings.aiProvider === 'gemini') {
-          return (
-              <div className="border border-indigo-500/30 rounded-lg p-4 bg-[#1a1a1a] mb-4">
-                  <label className="block text-sm font-bold text-indigo-400 mb-2 uppercase tracking-wide flex items-center gap-2"><CpuChipIcon className="w-4 h-4" /> Model Gemini</label>
-                  <div className="flex gap-2 flex-wrap mb-2">
-                      {GEMINI_MODELS.map((opt) => (
-                          <button key={opt.id} onClick={() => onSettingsChange({ model: opt.id })} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all border ${settings.model === opt.id ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800'}`}>
-                              {opt.label}
+      // ONLY SHOW GOMMO LIST
+      return (
+          <div className="border border-teal-500/30 rounded-lg p-4 bg-[#1a1a1a] mb-4">
+              <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-bold text-teal-400 uppercase tracking-wide flex items-center gap-2"><CpuChipIcon className="w-4 h-4" /> Model Aivideoauto</label>
+                  <button onClick={handleSaveAndTestGommoToken} className="text-[10px] text-teal-500 hover:underline flex items-center gap-1"><ArrowPathIcon className={`w-3 h-3 ${isLoadingGommoModels ? 'animate-spin' : ''}`}/> Reload</button>
+              </div>
+              {gommoModelsList.length === 0 ? (
+                  <div className="text-center p-4 bg-black/20 rounded border border-dashed border-gray-700">
+                      <p className="text-xs text-gray-500">Chưa tải được danh sách Model.</p>
+                      <p className="text-[10px] text-gray-600">Vui lòng sang tab <strong className="text-teal-400 cursor-pointer" onClick={() => setActiveTab('keys')}>Cấu Hình Key</strong> để kết nối.</p>
+                  </div>
+              ) : (
+                  <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                      {gommoModelsList.map((m) => (
+                          <button key={m.model} onClick={() => onSettingsChange({ gommoModel: m.model })} className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center text-center gap-1 h-full min-h-[50px] ${settings.gommoModel === m.model ? 'bg-teal-600 border-teal-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`} title={`${m.name}\n${m.description || ''}`}>
+                              <span className="line-clamp-2">{m.name}</span>
+                              {m.price !== undefined && <span className="text-[10px] opacity-70 font-normal bg-black/30 px-1 rounded">{m.price} credits</span>}
                           </button>
                       ))}
                   </div>
-                  {!keyConnected && <div className="text-[10px] text-orange-400 flex gap-1 items-center mt-2 bg-orange-900/10 p-2 rounded border border-orange-500/20"><ExclamationCircleIcon className="w-3 h-3" /> Chưa cấu hình Key.</div>}
-              </div>
-          );
-      } else {
-          return (
-              <div className="border border-teal-500/30 rounded-lg p-4 bg-[#1a1a1a] mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                      <label className="block text-sm font-bold text-teal-400 uppercase tracking-wide flex items-center gap-2"><CpuChipIcon className="w-4 h-4" /> Model Aivideoauto</label>
-                      <button onClick={handleSaveAndTestGommoToken} className="text-[10px] text-teal-500 hover:underline flex items-center gap-1"><ArrowPathIcon className={`w-3 h-3 ${isLoadingGommoModels ? 'animate-spin' : ''}`}/> Reload</button>
-                  </div>
-                  {gommoModelsList.length === 0 ? (
-                      <div className="text-center p-4 bg-black/20 rounded border border-dashed border-gray-700">
-                          <p className="text-xs text-gray-500">Chưa tải được danh sách Model.</p>
-                          <p className="text-[10px] text-gray-600">Vui lòng sang tab <strong className="text-teal-400 cursor-pointer" onClick={() => setActiveTab('keys')}>Cấu Hình Key</strong> để kết nối.</p>
-                      </div>
-                  ) : (
-                      <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
-                          {gommoModelsList.map((m) => (
-                              <button key={m.model} onClick={() => onSettingsChange({ gommoModel: m.model })} className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center text-center gap-1 h-full min-h-[50px] ${settings.gommoModel === m.model ? 'bg-teal-600 border-teal-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`} title={`${m.name}\n${m.description || ''}`}>
-                                  <span className="line-clamp-2">{m.name}</span>
-                                  {m.price !== undefined && <span className="text-[10px] opacity-70 font-normal bg-black/30 px-1 rounded">{m.price} credits</span>}
-                              </button>
-                          ))}
-                      </div>
-                  )}
-              </div>
-          );
-      }
+              )}
+          </div>
+      );
   };
 
   const renderSizeConfig = () => {
-    // Uses the top level variables calculated before conditional rendering
-    const showResolution = !isGommoProvider || (isGommoProvider && activeGommoModel && activeGommoModel.resolutions && activeGommoModel.resolutions.length > 0);
-    const resolutions = isGommoProvider && activeGommoModel ? (activeGommoModel.resolutions || []) : [];
+    const showResolution = (activeGommoModel && activeGommoModel.resolutions && activeGommoModel.resolutions.length > 0);
+    const resolutions = activeGommoModel ? (activeGommoModel.resolutions || []) : [];
 
     // Chỉ hiển thị khi đã chọn Model
-    const isModelSelected = isGommoProvider ? !!activeGommoModel : !!settings.model;
+    const isModelSelected = !!activeGommoModel;
     if (!isModelSelected) return null;
 
     return (
@@ -621,7 +556,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         </div>
         <div className="p-4">
             <div className="mb-4">
-                <label className="text-xs text-gray-500 block mb-2 font-medium">Tỷ lệ khung hình {isGommoProvider && <span className="text-teal-500 font-normal ml-1 text-[10px]">(Theo Model)</span>}</label>
+                <label className="text-xs text-gray-500 block mb-2 font-medium">Tỷ lệ khung hình <span className="text-teal-500 font-normal ml-1 text-[10px]">(Theo Model)</span></label>
                 <div className="grid grid-cols-4 gap-2">
                     {activeRatios.map((ratio) => (
                         <button key={ratio} onClick={() => onSettingsChange({ aspectRatio: ratio })} className={`py-1.5 rounded text-xs font-bold border transition-all truncate px-1 ${settings.aspectRatio === ratio ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800'}`} title={ratio}>{ratio}</button>
@@ -632,15 +567,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-500 block font-medium">Độ phân giải</label>
                     <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700 flex-wrap gap-1">
-                        {isGommoProvider ? (
-                            resolutions.map((res) => (
-                                <button key={res.type} onClick={() => onSettingsChange({ imageSize: res.type })} className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all min-w-[50px] ${settings.imageSize === res.type ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>{res.name}</button>
-                            ))
-                        ) : (
-                            ['1K', '2K', '4K'].map((size) => (
-                                <button key={size} onClick={() => onSettingsChange({ imageSize: size })} className={`flex-1 py-1.5 rounded-md text-xs font-bold transition-all ${settings.imageSize === size ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>{size}</button>
-                            ))
-                        )}
+                        {resolutions.map((res) => (
+                            <button key={res.type} onClick={() => onSettingsChange({ imageSize: res.type })} className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all min-w-[50px] ${settings.imageSize === res.type ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>{res.name}</button>
+                        ))}
                     </div>
                 </div>
             )}
@@ -813,7 +742,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsGalleryOpen(!isGalleryOpen)}>
             <h3 className="font-semibold text-gray-200 text-lg flex items-center gap-2"><ArchiveBoxIcon className="w-6 h-6 text-purple-500" /> Kho Ảnh ({galleryItems.length})</h3>
             <div className="absolute right-5 flex items-center gap-2">
-                {settings.aiProvider === 'gommo' && onSyncGallery && <button onClick={(e) => { e.stopPropagation(); onSyncGallery(); }} className="bg-teal-600/30 hover:bg-teal-600 text-teal-400 hover:text-white p-1.5 rounded transition-all"><CloudArrowDownIcon className="w-5 h-5" /></button>}
+                {onSyncGallery && <button onClick={(e) => { e.stopPropagation(); onSyncGallery(); }} className="bg-teal-600/30 hover:bg-teal-600 text-teal-400 hover:text-white p-1.5 rounded transition-all"><CloudArrowDownIcon className="w-5 h-5" /></button>}
                 {isGalleryOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}
             </div>
         </div>
@@ -919,7 +848,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             
             {activeTab === 'studio' ? (
                 <>
-                    {renderServiceSelection()}
+                    {/* renderServiceSelection removed - forcing Gommo */}
                     {renderModelList()}
                     
                     {renderSizeConfig()}
