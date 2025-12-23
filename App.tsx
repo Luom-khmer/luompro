@@ -304,8 +304,8 @@ const App: React.FC = () => {
              // --- GOMMO WORKFLOW ---
              if (!finalSettings.gommoApiKey) throw new Error("Vui lòng nhập Gommo Access Token.");
              
-             // Optimize and Resize Image for Gommo
-             const base64Data = await resizeImage(file, 1024, 1024, 0.9);
+             // Optimize and Resize Image for Gommo (Reduced quality to 0.8 to prevent Timeout)
+             const base64Data = await resizeImage(file, 1024, 1024, 0.8);
              
              // Create/Edit (Standard Gen)
              const modelId = finalSettings.gommoModel || 'google_image_gen_banana_pro';
@@ -348,7 +348,7 @@ const App: React.FC = () => {
 
                  // Ảnh 2: Ảnh mẫu hack nền (nếu có) -> Subject 2
                  if (finalSettings.referenceImage) {
-                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.9);
+                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.8);
                      const refMime = finalSettings.referenceImage.type || 'image/jpeg';
                      subjectsPayload.push({
                          data: `data:${refMime};base64,${refBase64Raw}`
