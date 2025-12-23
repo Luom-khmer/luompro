@@ -1,17 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/gommo/:path*",
-      "destination": "/api/proxy?path=:path*"
-    },
-    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
-  ],
-  "functions": {
-    "api/proxy.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
@@ -466,17 +465,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const renderServiceSelection = () => (
       <div className="mb-4">
-          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Nguồn AI tạo ảnh</label>
+          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Nguồn AI xử lý</label>
           <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700">
-             {/* Enforce Gommo Only for Generation */}
-             <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all bg-teal-600 text-white shadow-lg cursor-default">
-                <ServerStackIcon className="w-4 h-4" /> Aivideoauto (System API)
+             <button onClick={() => onSettingsChange({ aiProvider: 'gemini' })} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${settings.aiProvider === 'gemini' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <GlobeAltIcon className="w-4 h-4" /> Google API
+             </button>
+             <button onClick={() => onSettingsChange({ aiProvider: 'gommo' })} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${settings.aiProvider === 'gommo' ? 'bg-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
+                <ServerStackIcon className="w-4 h-4" /> Aivideoauto
              </button>
           </div>
-          <p className="text-[10px] text-gray-500 mt-1 flex items-center gap-1">
-            <InformationCircleIcon className="w-3 h-3"/> 
-            Google Key chỉ dùng để Phân tích ảnh & Viết Prompt.
-          </p>
       </div>
   );
 

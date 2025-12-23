@@ -11,20 +11,17 @@ import {
 
 const DOMAIN = "aivideoauto.com";
 
-// Use relative proxy path to solve CORS
-const BASE_URL = "/api/gommo";
-
 // Constants for endpoints
 const ENDPOINTS = {
-    MODELS: `${BASE_URL}/ai/models`,
-    CREATE_VIDEO: `${BASE_URL}/ai/create-video`,
-    CHECK_VIDEO: `${BASE_URL}/ai/video`,
-    CHECK_IMAGE: `${BASE_URL}/ai/image`,
-    UPLOAD_IMAGE: `${BASE_URL}/ai/image-upload`,
-    GENERATE_IMAGE: `${BASE_URL}/ai/generateImage`,
-    USER_INFO: `${BASE_URL}/api/apps/go-mmo/ai/me`,
-    UPSCALE: `${BASE_URL}/api/apps/go-mmo/ai_templates/tools`,
-    LIST_IMAGES: `${BASE_URL}/ai/images`
+    MODELS: "https://api.gommo.net/ai/models",
+    CREATE_VIDEO: "https://api.gommo.net/ai/create-video",
+    CHECK_VIDEO: "https://api.gommo.net/ai/video",
+    CHECK_IMAGE: "https://api.gommo.net/ai/image",
+    UPLOAD_IMAGE: "https://api.gommo.net/ai/image-upload",
+    GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage",
+    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me",
+    UPSCALE: "https://api.gommo.net/api/apps/go-mmo/ai_templates/tools",
+    LIST_IMAGES: "https://api.gommo.net/ai/images" // NEW ENDPOINT
 };
 
 // Helper to create body matching the requirement: 
@@ -203,7 +200,6 @@ export const uploadGommoImage = async (
 export interface GenerateGommoImageOptions {
     editImage?: boolean;
     base64Image?: string; // includes data:image/jpeg;base64, prefix
-    initImageUrl?: string; // NEW: Support URL directly to avoid large payloads
     ratio?: string; // Relaxed type to allow all string ratios like '3_4', '16_9' etc.
     resolution?: string; // e.g. '1k', '2k'
     subjects?: Array<{ id_base?: string; url?: string; data?: string }>;
@@ -231,11 +227,7 @@ export const generateGommoImage = async (
 
         if (options.editImage) {
             params.editImage = 'true';
-            // Ưu tiên dùng URL nếu có để request nhẹ hơn
-            if (options.initImageUrl) {
-                params.init_image_url = options.initImageUrl;
-                params.image_url = options.initImageUrl; // Backup param name just in case
-            } else if (options.base64Image) {
+            if (options.base64Image) {
                 params.base64Image = options.base64Image;
             }
         } else {
@@ -325,7 +317,7 @@ export const upscaleGommoImage = async (
 export const pollGommoImageCompletion = async (
     accessToken: string,
     idBase: string,
-    maxRetries = 600, // Tăng lên 600 lần (30 phút) để đáp ứng yêu cầu "đợi đến khi xong"
+    maxRetries = 60, // ~3 minutes
     interval = 3000
 ): Promise<string> => {
     let retries = 0;
@@ -340,7 +332,7 @@ export const pollGommoImageCompletion = async (
                 // If SUCCESS but no URL, weird case, might check structure again
                 if (data.imageInfo && data.imageInfo.url) return data.imageInfo.url;
                 throw new Error("Trạng thái SUCCESS nhưng không tìm thấy URL.");
-            } else if (status === 'ERROR' || status === 'FAILED') {
+            } else if (status === 'ERROR') {
                  throw new Error("Gommo báo lỗi: Tạo ảnh thất bại.");
             }
             
@@ -348,8 +340,10 @@ export const pollGommoImageCompletion = async (
             
         } catch (err: any) {
             console.warn("Polling status error:", err.message);
-            // Ignore temporary network errors during polling
-            if (err.message.includes("báo lỗi")) {
+            // If it's a critical logic error from API (not network), we might want to throw
+            if (err.message.includes("not found")) {
+                 // Sometimes ID is not immediately available?
+            } else if (err.message.includes("báo lỗi")) {
                 throw err;
             }
         }
@@ -357,7 +351,7 @@ export const pollGommoImageCompletion = async (
         await new Promise(r => setTimeout(r, interval));
         retries++;
     }
-    throw new Error("Quá thời gian chờ xử lý (Timeout > 30 phút).");
+    throw new Error("Quá thời gian chờ xử lý (Timeout).");
 };
 
 /**

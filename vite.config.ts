@@ -9,15 +9,6 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
-    server: {
-      proxy: {
-        '/api/gommo': {
-          target: 'https://api.gommo.net',
-          changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/gommo/, '')
-        }
-      }
-    },
     define: {
       // Vital: This enables the app to access process.env.API_KEY in the browser
       // by replacing it with the actual value during the build process.

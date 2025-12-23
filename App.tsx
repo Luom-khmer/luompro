@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -47,8 +46,8 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     imageSize: '1K',
     apiKey: '',
     
-    // Default to Gommo (My API) for Generation
-    aiProvider: 'gommo',
+    // Default to Gemini
+    aiProvider: 'gemini',
     // Set a valid default from the provided JSON list
     gommoModel: 'google_image_gen_banana_pro', 
     gommoApiKey: ''
@@ -260,9 +259,8 @@ const App: React.FC = () => {
           return;
       }
 
-      // 2. CALCULATE COST & PROVIDER
-      // Force default to gommo to separate generation logic
-      const provider = activeSettings.aiProvider || 'gommo';
+      // 2. CALCULATE COST
+      const provider = activeSettings.aiProvider || 'gemini';
       let estimatedCost = 1; // Default Gemini Cost
 
       if (provider === 'gommo') {
@@ -304,21 +302,14 @@ const App: React.FC = () => {
              // --- GOMMO WORKFLOW ---
              if (!finalSettings.gommoApiKey) throw new Error("Vui lòng nhập Gommo Access Token.");
              
-             // STEP 1: UPLOAD ẢNH TRƯỚC ĐỂ LẤY URL
-             // Việc này tách request nặng (upload) ra khỏi request tạo ảnh, tránh 524 Timeout
-             const base64Data = await resizeImage(file, 1024, 1024, 0.8);
-             const uploadRes = await uploadGommoImage(finalSettings.gommoApiKey, base64Data);
+             // Optimize and Resize Image for Gommo
+             const base64Data = await resizeImage(file, 1024, 1024, 0.9);
              
-             let uploadedImageUrl = '';
-             if (uploadRes.imageInfo?.url) uploadedImageUrl = uploadRes.imageInfo.url;
-             else if (uploadRes.success?.imageInfo?.url) uploadedImageUrl = uploadRes.success.imageInfo.url;
-             
-             if (!uploadedImageUrl) throw new Error("Lỗi upload ảnh lên server (không nhận được URL).");
-
-             // STEP 2: GỌI API TẠO ẢNH BẰNG URL VỪA NHẬN
+             // Create/Edit (Standard Gen)
              const modelId = finalSettings.gommoModel || 'google_image_gen_banana_pro';
              let prompt = finalSettings.userPrompt || "Enhance image";
              
+             // Map Aspect Ratio from Settings to Gommo Format
              let gommoRatio = '1_1';
              if (finalSettings.aspectRatio) {
                  const raw = finalSettings.aspectRatio.replace(/\s*•.*/, ''); 
@@ -331,34 +322,35 @@ const App: React.FC = () => {
 
              let gommoResolution = (finalSettings.imageSize || '1k').toLowerCase();
              
+             let mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+             const fullBase64 = `data:${mimeType};base64,${base64Data}`;
+
              // --- HACK CONCEPT PRO CONFIG ---
+             // In "Hack Concept Pro" mode:
+             // 1. Each generation gets a UNIQUE project_id (effectively a new session).
+             // 2. The Main Image (Input) is mapped to Subject 1 (Index 0).
+             // 3. The Reference Image (Hack Background) is mapped to Subject 2 (Index 1).
              let projectId = 'default';
              let subjectsPayload: any[] | undefined = undefined;
 
              if (currentView === 'hack-concept') {
+                 // Mỗi lần tạo ảnh là một project_id mới duy nhất
                  projectId = crypto.randomUUID(); 
                  
                  subjectsPayload = [];
                  
-                 // Ảnh 1: Ảnh chính -> Dùng URL đã upload (nhẹ hơn base64)
+                 // Ảnh 1: Ảnh chính (được chọn để tạo) -> Subject 1
                  subjectsPayload.push({
-                     url: uploadedImageUrl
+                     data: fullBase64
                  });
 
-                 // Ảnh 2: Ảnh mẫu hack nền (nếu có)
+                 // Ảnh 2: Ảnh mẫu hack nền (nếu có) -> Subject 2
                  if (finalSettings.referenceImage) {
-                     // Upload ảnh Reference luôn cho đồng bộ
-                     const refBase64 = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.8);
-                     const refUploadRes = await uploadGommoImage(finalSettings.gommoApiKey, refBase64);
-                     const refUrl = refUploadRes.imageInfo?.url || refUploadRes.success?.imageInfo?.url;
-                     
-                     if (refUrl) {
-                         subjectsPayload.push({ url: refUrl });
-                     } else {
-                         // Fallback nếu upload fail thì dùng base64 (hiếm khi xảy ra)
-                         const refMime = finalSettings.referenceImage.type || 'image/jpeg';
-                         subjectsPayload.push({ data: `data:${refMime};base64,${refBase64}` });
-                     }
+                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.9);
+                     const refMime = finalSettings.referenceImage.type || 'image/jpeg';
+                     subjectsPayload.push({
+                         data: `data:${refMime};base64,${refBase64Raw}`
+                     });
                  }
              }
 
@@ -369,7 +361,7 @@ const App: React.FC = () => {
                  prompt, 
                  {
                     editImage: true, 
-                    initImageUrl: uploadedImageUrl, // Dùng URL thay vì base64Image
+                    base64Image: fullBase64, 
                     ratio: gommoRatio,
                     resolution: gommoResolution,
                     project_id: projectId,
@@ -427,6 +419,8 @@ const App: React.FC = () => {
 
       } catch (e: any) {
         // --- ERROR LOGIC ---
+        // Không cần hoàn tiền vì chưa trừ
+        
         const errorMessage = e.message || 'Lỗi tạo ảnh';
         setActiveImages(prev => prev.map(p => p.id === id ? { ...p, status: 'error', error: errorMessage } : p));
         alert(`Tạo ảnh thất bại: ${errorMessage}. (Không bị trừ Credits)`);
