@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
-import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
+import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
 import { analyzeReferenceImage, validateApiKey } from '../services/geminiService';
 import { fetchGommoModels } from '../services/gommoService';
 import { APP_CONFIG } from '../config';
@@ -147,6 +148,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   // --- TOP LEVEL HOOKS FOR MODEL & RATIO LOGIC ---
   const isGommoProvider = settings.aiProvider === 'gommo';
+  const hasProxy = !!APP_CONFIG.GOMMO_PROXY_URL;
   
   const activeGommoModel = React.useMemo(() => {
      if (!isGommoProvider) return null;
@@ -220,7 +222,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               if (!currentExists && models.length > 0) {
                   onSettingsChange({ gommoModel: models[0].model });
               }
-              if (!isLoadingGommoModels) alert(`Kết nối thành công! Đã tải ${models.length} models.`);
+              // Quiet success, only update UI state
           } else {
               throw new Error("Không lấy được danh sách Model (Danh sách trống).");
           }
@@ -465,7 +467,15 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const renderServiceSelection = () => (
       <div className="mb-4">
-          <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">Nguồn AI xử lý</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide">Nguồn AI xử lý</label>
+            {isGommoProvider && hasProxy && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 bg-teal-900/30 border border-teal-500/30 rounded text-[10px] text-teal-400 font-bold animate-pulse">
+                    <ShieldCheckIcon className="w-3 h-3" />
+                    Proxy Active
+                </div>
+            )}
+          </div>
           <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700">
              <button onClick={() => onSettingsChange({ aiProvider: 'gemini' })} className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-md text-sm font-bold transition-all ${settings.aiProvider === 'gemini' ? 'bg-indigo-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <GlobeAltIcon className="w-4 h-4" /> Google API
@@ -510,10 +520,22 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
            {isAdmin && (
                <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
                     <div className="p-4 border-b border-gray-800/50 bg-black/20">
-                         <div className="flex items-center gap-2 mb-1">
-                             <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
-                             <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token</h3>
-                             {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
+                         <div className="flex items-center justify-between mb-1">
+                             <div className="flex items-center gap-2">
+                                <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
+                                <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token</h3>
+                                {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
+                             </div>
+                             {/* Proxy Status Indicator in Key Tab */}
+                             {hasProxy ? (
+                                 <span className="text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
+                                     <ShieldCheckIcon className="w-3 h-3" /> Proxy OK
+                                 </span>
+                             ) : (
+                                 <span className="text-[10px] text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-500/30 flex items-center gap-1">
+                                     <ExclamationCircleIcon className="w-3 h-3" /> No Proxy
+                                 </span>
+                             )}
                          </div>
                     </div>
                     <div className="p-4">
@@ -529,6 +551,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                                       {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
                                   </button>
                               </div>
+                              {hasProxy && (
+                                  <p className="text-[10px] text-gray-500 text-center mt-1">
+                                      Kết nối an toàn qua: <span className="text-gray-400 font-mono">{APP_CONFIG.GOMMO_PROXY_URL?.split('//')[1]?.split('.')[0]}...</span>
+                                  </p>
+                              )}
                          </div>
                     </div>
                </div>

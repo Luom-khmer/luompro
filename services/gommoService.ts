@@ -8,20 +8,28 @@ import {
     GommoImagesResponse,
     GommoUserInfoResponse
 } from '../types';
+import { APP_CONFIG } from '../config';
 
 const DOMAIN = "aivideoauto.com";
 
-// Constants for endpoints
+// Logic chọn Base URL:
+// 1. Ưu tiên Cloudflare Worker (GOMMO_PROXY_URL) nếu có -> Bypass CORS & Timeout.
+// 2. Fallback về API gốc (sẽ bị CORS nếu chạy client-side).
+const BASE_URL = APP_CONFIG.GOMMO_PROXY_URL 
+    ? APP_CONFIG.GOMMO_PROXY_URL.replace(/\/$/, '') 
+    : "https://api.gommo.net";
+
+// Constants for endpoints (Dynamic)
 const ENDPOINTS = {
-    MODELS: "https://api.gommo.net/ai/models",
-    CREATE_VIDEO: "https://api.gommo.net/ai/create-video",
-    CHECK_VIDEO: "https://api.gommo.net/ai/video",
-    CHECK_IMAGE: "https://api.gommo.net/ai/image",
-    UPLOAD_IMAGE: "https://api.gommo.net/ai/image-upload",
-    GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage",
-    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me",
-    UPSCALE: "https://api.gommo.net/api/apps/go-mmo/ai_templates/tools",
-    LIST_IMAGES: "https://api.gommo.net/ai/images" // NEW ENDPOINT
+    MODELS: `${BASE_URL}/ai/models`,
+    CREATE_VIDEO: `${BASE_URL}/ai/create-video`,
+    CHECK_VIDEO: `${BASE_URL}/ai/video`,
+    CHECK_IMAGE: `${BASE_URL}/ai/image`,
+    UPLOAD_IMAGE: `${BASE_URL}/ai/image-upload`,
+    GENERATE_IMAGE: `${BASE_URL}/ai/generateImage`,
+    USER_INFO: `${BASE_URL}/api/apps/go-mmo/ai/me`,
+    UPSCALE: `${BASE_URL}/api/apps/go-mmo/ai_templates/tools`,
+    LIST_IMAGES: `${BASE_URL}/ai/images`
 };
 
 // Helper to create body matching the requirement: 
@@ -81,7 +89,7 @@ const processResponse = async (response: Response) => {
 const handleGommoError = (error: any): Error => {
     const msg = error.message || "";
     if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
-        return new Error("Lỗi mạng (Network Error). Có thể do CORS, chặn quảng cáo hoặc server từ chối kết nối. Hãy thử tắt VPN/AdBlock.");
+        return new Error("Lỗi kết nối (CORS/Network). Vui lòng điền 'Cloudflare Worker URL' vào file config.ts để khắc phục.");
     }
     return new Error(msg || "Lỗi không xác định từ Gommo Service.");
 };
@@ -317,8 +325,8 @@ export const upscaleGommoImage = async (
 export const pollGommoImageCompletion = async (
     accessToken: string,
     idBase: string,
-    maxRetries = 60, // ~3 minutes
-    interval = 3000
+    maxRetries = 2160, // 2160 lần * 5 giây = ~3 tiếng (Tăng thời gian chờ theo yêu cầu)
+    interval = 5000
 ): Promise<string> => {
     let retries = 0;
     while (retries < maxRetries) {
@@ -332,7 +340,7 @@ export const pollGommoImageCompletion = async (
                 // If SUCCESS but no URL, weird case, might check structure again
                 if (data.imageInfo && data.imageInfo.url) return data.imageInfo.url;
                 throw new Error("Trạng thái SUCCESS nhưng không tìm thấy URL.");
-            } else if (status === 'ERROR') {
+            } else if (status === 'ERROR' || status === 'FAILED') {
                  throw new Error("Gommo báo lỗi: Tạo ảnh thất bại.");
             }
             
@@ -340,10 +348,8 @@ export const pollGommoImageCompletion = async (
             
         } catch (err: any) {
             console.warn("Polling status error:", err.message);
-            // If it's a critical logic error from API (not network), we might want to throw
-            if (err.message.includes("not found")) {
-                 // Sometimes ID is not immediately available?
-            } else if (err.message.includes("báo lỗi")) {
+            // Ignore temporary network errors or polling glitches
+            if (err.message.includes("báo lỗi")) {
                 throw err;
             }
         }
@@ -351,7 +357,7 @@ export const pollGommoImageCompletion = async (
         await new Promise(r => setTimeout(r, interval));
         retries++;
     }
-    throw new Error("Quá thời gian chờ xử lý (Timeout).");
+    throw new Error("Quá thời gian chờ xử lý (Timeout > 3 giờ).");
 };
 
 /**

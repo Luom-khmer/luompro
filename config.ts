@@ -11,8 +11,13 @@ export const APP_CONFIG = {
     // 2. Gommo Access Token (Tùy chọn - Dùng cho chức năng nâng cao/video)
     // -> Lấy tại: https://aivideoauto.com/pages/account/apikeys
     GOMMO_API_KEY: "Jgfrhaf/dLPeJmdj7A4RgMJzk4TQakr1PmK14mFhC9FG7VM/I16+ZMvETX/TpokBlAjEO/sb2xNW5a09BG1UUnMOuL6lco2051HwUZY9lBTqvvgETPkQeO/ND5VHWUTgsXb6llG271cbgRhiZJMR1xUx8zm/TQYNs10RzCocpAOIiadIWhypWqBt8uWduO9rM6kWNxBiishkUf49ICR2cQ==",
+    
+    // 3. Cloudflare Worker URL (BẮT BUỘC ĐỂ TRÁNH LỖI CORS & TIMEOUT)
+    // Thay thế bằng link Worker của bạn. VD: "https://my-proxy.user.workers.dev"
+    // Link này giúp ẩn danh và giữ kết nối lâu hơn Vercel (giới hạn 10-60s).
+    GOMMO_PROXY_URL: "https://red-unit-gommo-proxy.dluom4198.workers.dev", 
 
-    // 3. Firebase Config (Dành cho chức năng Đăng nhập)
+    // 4. Firebase Config (Dành cho chức năng Đăng nhập)
     // -> Lấy tại Firebase Console > Project Settings > General > Your apps
     FIREBASE: {
         apiKey: "AIzaSyCAhx1Bor7eAK7MrTbbK4tHr0Z0vP2kN1E",
@@ -24,7 +29,7 @@ export const APP_CONFIG = {
         measurementId: "G-PGV1ZZ3PR6"
     },
 
-    // 4. Danh sách Email Admin (Thay thế bằng email thật của bạn)
+    // 5. Danh sách Email Admin (Thay thế bằng email thật của bạn)
     ADMIN_EMAILS: [
         "admin@gmail.com", 
         "nguyendinhtien@gmail.com",
