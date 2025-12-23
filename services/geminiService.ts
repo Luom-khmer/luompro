@@ -54,6 +54,7 @@ async function withKeyRotation<T>(
         } catch (error: any) {
             lastError = error;
             const msg = (error.message || error.toString()).toLowerCase();
+            console.warn(`Key ...${apiKey.slice(-4)} failed: ${msg}`);
             
             // Chỉ retry nếu lỗi liên quan đến Quota (429) hoặc Server quá tải (503)
             const isQuotaError = msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted');
@@ -63,6 +64,7 @@ async function withKeyRotation<T>(
                 console.warn(`Key ...${apiKey.slice(-4)} bị lỗi. Đang chuyển sang key tiếp theo...`);
                 continue;
             } else {
+                // Break on other errors (like 400 Bad Request, 403 Permission Denied) to avoid useless retries
                 break; 
             }
         }
@@ -77,11 +79,15 @@ const handleGeminiError = (error: any, modelName: string = '') => {
     const msg = (error.message || error.toString()).toLowerCase();
     
     if (msg.includes('permission denied') || msg.includes('403')) {
-        return new Error("Lỗi Quyền (403): API Key bị từ chối.");
+        return new Error("Lỗi Quyền (403): API Key bị từ chối hoặc không có quyền truy cập model này.");
     }
     
     if (msg.includes('429') || msg.includes('quota')) {
         return new Error("Lỗi Quota (429): Key hết lượt dùng. Vui lòng thử lại sau.");
+    }
+
+    if (msg.includes('404') || msg.includes('not found')) {
+        return new Error(`Lỗi Model (404): Model '${modelName}' không khả dụng.`);
     }
 
     if (msg.includes('400')) {
@@ -99,13 +105,14 @@ export const validateApiKey = async (apiKey: string): Promise<{ valid: boolean; 
     try {
         const ai = new GoogleGenAI({ apiKey: keys[0] });
         await ai.models.generateContent({
-            model: 'gemini-2.5-flash-latest',
+            model: 'gemini-3-flash-preview', // Updated to valid model
             contents: { parts: [{ text: 'ping' }] },
             config: { maxOutputTokens: 1 }
         });
         return { valid: true };
     } catch (error: any) {
-        return { valid: false, message: "Key không hoạt động." };
+        const err = handleGeminiError(error, 'gemini-3-flash-preview');
+        return { valid: false, message: err.message };
     }
 };
 
@@ -202,7 +209,7 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         }
 
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-latest',
+          model: 'gemini-3-flash-preview', // Updated to valid model
           contents: { 
             parts: [
               { inlineData: { mimeType, data: base64Data } }, 
@@ -212,5 +219,5 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         });
 
         return response.text?.trim() || "";
-    });
+    }, 'gemini-3-flash-preview');
 };
