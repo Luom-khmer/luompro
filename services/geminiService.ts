@@ -1,6 +1,10 @@
+
 import { GoogleGenAI, Modality, Part } from "@google/genai";
 import { GenerationSettings, WeatherOption, ProfileSettings } from "../types";
 import { APP_CONFIG } from '../config';
+
+// HELPER: Delay để tránh spam request (Rate Limit Mitigation)
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 // HELPER: Trích xuất danh sách Key từ chuỗi nhập vào
 // Hỗ trợ phân tách bằng xuống dòng, dấu phẩy hoặc dấu chấm phẩy
@@ -63,6 +67,12 @@ async function withKeyRotation<T>(
             
             if (isQuotaError || isServerError) {
                 console.warn(`Key ...${apiKey.slice(-4)} bị lỗi ${isQuotaError ? '429 (Hết lượt)' : '503'}. Đang chuyển sang key tiếp theo...`);
+                
+                // FIX: Thêm delay 1.5s trước khi thử key tiếp theo để tránh bị đánh dấu spam
+                if (i < keys.length - 1) {
+                    await delay(1500);
+                }
+                
                 // Continue loop to next key
                 continue;
             } else {
@@ -90,7 +100,7 @@ const handleGeminiError = (error: any, modelName: string = '') => {
     }
     
     if (msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted')) {
-        return new Error("Lỗi Quota (429): Tất cả các Key đã hết lượt dùng. Vui lòng thêm Key mới.");
+        return new Error("Lỗi Quota (429): Tất cả các Key đã hết lượt dùng hôm nay. Vui lòng thêm Key mới hoặc quay lại sau.");
     }
 
     if (msg.includes('400') || msg.includes('invalid_argument')) {
@@ -113,8 +123,9 @@ export const validateApiKey = async (apiKey: string): Promise<{ valid: boolean; 
     // Test the first key
     try {
         const ai = new GoogleGenAI({ apiKey: keys[0] });
+        // Use gemini-1.5-flash for lighter ping
         await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-1.5-flash',
             contents: { parts: [{ text: 'ping' }] },
             config: { maxOutputTokens: 1 }
         });
@@ -124,6 +135,7 @@ export const validateApiKey = async (apiKey: string): Promise<{ valid: boolean; 
         const errStr = (error.message || "").toLowerCase();
         if (errStr.includes('403')) msg = "Key bị từ chối (403).";
         else if (errStr.includes('400')) msg = "Key không tồn tại.";
+        else if (errStr.includes('429')) msg = "Key đã hết lượt (429).";
         return { valid: false, message: msg };
     }
 };
@@ -437,10 +449,9 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         }
 
         // --- FIXED MODEL FOR ANALYSIS ---
-        // Using 'gemini-3-flash-preview' for Multimodal input (Image) -> Text output.
-        // The previous model 'gemini-2.5-flash-image' was strictly for Image Generation and caused errors.
+        // Change from gemini-3-flash-preview to gemini-1.5-flash for better stability and quota management
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview',
+          model: 'gemini-1.5-flash',
           contents: { 
             parts: [
               { inlineData: { mimeType, data: base64Data } }, 

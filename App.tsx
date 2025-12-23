@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -46,8 +47,8 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     imageSize: '1K',
     apiKey: '',
     
-    // Default to Gemini
-    aiProvider: 'gemini',
+    // Default to Gommo (My API) for Generation
+    aiProvider: 'gommo',
     // Set a valid default from the provided JSON list
     gommoModel: 'google_image_gen_banana_pro', 
     gommoApiKey: ''
@@ -259,8 +260,9 @@ const App: React.FC = () => {
           return;
       }
 
-      // 2. CALCULATE COST
-      const provider = activeSettings.aiProvider || 'gemini';
+      // 2. CALCULATE COST & PROVIDER
+      // Force default to gommo to separate generation logic
+      const provider = activeSettings.aiProvider || 'gommo';
       let estimatedCost = 1; // Default Gemini Cost
 
       if (provider === 'gommo') {
@@ -397,6 +399,8 @@ const App: React.FC = () => {
 
         } else {
             // --- GEMINI WORKFLOW ---
+            // Should theoretically be unreachable if UI is constrained to Gommo,
+            // but kept for fallback logic if manually configured.
             url = await generateStyledImage(file, finalSettings);
         }
         
