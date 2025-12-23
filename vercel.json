@@ -1,8 +1,8 @@
 {
   "rewrites": [
     {
-      "source": "/api/gommo/:match*",
-      "destination": "https://api.gommo.net/:match*"
+      "source": "/api/gommo/:path*",
+      "destination": "/api/proxy?path=:path*"
     },
     {
       "source": "/(.*)",
