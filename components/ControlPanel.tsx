@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
@@ -470,47 +471,49 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                {keyError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {keyError}</p>}
            </div>
 
-           {/* Section 2: Gommo / Aivideoauto Token */}
-           <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
-                <div className="p-4 border-b border-gray-800/50 bg-black/20">
-                     <div className="flex items-center justify-between mb-1">
-                         <div className="flex items-center gap-2">
-                            <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
-                            <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token (Tạo Ảnh)</h3>
-                            {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
+           {/* Section 2: Gommo / Aivideoauto Token - ONLY FOR ADMIN */}
+           {isAdmin && (
+               <div className={`border rounded-lg bg-[#1a1a1a] overflow-hidden transition-all ${gommoConnected ? 'border-teal-500/50 shadow-[0_0_15px_rgba(20,184,166,0.1)]' : 'border-gray-700'}`}>
+                    <div className="p-4 border-b border-gray-800/50 bg-black/20">
+                         <div className="flex items-center justify-between mb-1">
+                             <div className="flex items-center gap-2">
+                                <KeyIcon className={`w-5 h-5 ${gommoConnected ? 'text-teal-400' : 'text-gray-400'}`} />
+                                <h3 className={`font-bold text-sm uppercase ${gommoConnected ? 'text-teal-100' : 'text-gray-300'}`}>Aivideoauto Access Token (Tạo Ảnh)</h3>
+                                {gommoConnected && <CheckCircleIcon className="w-4 h-4 text-teal-500" />}
+                             </div>
+                             {hasProxy ? (
+                                 <span className="text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
+                                     <ShieldCheckIcon className="w-3 h-3" /> Proxy OK
+                                 </span>
+                             ) : (
+                                 <span className="text-[10px] text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-500/30 flex items-center gap-1">
+                                     <ExclamationCircleIcon className="w-3 h-3" /> No Proxy
+                                 </span>
+                             )}
                          </div>
-                         {hasProxy ? (
-                             <span className="text-[10px] text-green-400 bg-green-900/30 px-2 py-0.5 rounded border border-green-500/30 flex items-center gap-1">
-                                 <ShieldCheckIcon className="w-3 h-3" /> Proxy OK
-                             </span>
-                         ) : (
-                             <span className="text-[10px] text-orange-400 bg-orange-900/30 px-2 py-0.5 rounded border border-orange-500/30 flex items-center gap-1">
-                                 <ExclamationCircleIcon className="w-3 h-3" /> No Proxy
-                             </span>
-                         )}
-                     </div>
-                </div>
-                <div className="p-4">
-                     <div className="flex flex-col gap-3">
-                          <div className="relative">
-                              <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
-                              {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
-                          </div>
-                          {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
-                          <div className="flex flex-col gap-2">
-                              <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
-                                  {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
-                                  {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
-                              </button>
-                          </div>
-                          {hasProxy && (
-                              <p className="text-[10px] text-gray-500 text-center mt-1">
-                                  Kết nối an toàn qua: <span className="text-gray-400 font-mono">{APP_CONFIG.GOMMO_PROXY_URL?.split('//')[1]?.split('.')[0]}...</span>
-                              </p>
-                          )}
-                     </div>
-                </div>
-           </div>
+                    </div>
+                    <div className="p-4">
+                         <div className="flex flex-col gap-3">
+                              <div className="relative">
+                                  <input type="password" placeholder="Dán Access Token (Jgfr...)" value={settings.gommoApiKey || ''} onChange={(e) => { onSettingsChange({ gommoApiKey: e.target.value }); setGommoConnected(false); setGommoError(null); }} className={`w-full bg-[#222] border rounded p-2.5 text-sm text-white focus:outline-none focus:ring-1 placeholder-gray-600 transition-all ${gommoConnected ? 'border-teal-500 focus:ring-teal-500' : gommoError ? 'border-red-500 focus:ring-red-500' : 'border-gray-600 focus:border-teal-500'}`}/>
+                                  {settings.gommoApiKey && <button onClick={handleResetGommoKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
+                              </div>
+                              {gommoError && <p className="text-red-400 text-xs flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {gommoError}</p>}
+                              <div className="flex flex-col gap-2">
+                                  <button onClick={handleSaveAndTestGommoToken} disabled={isLoadingGommoModels} className={`w-full py-2.5 rounded text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md transform active:scale-95 ${gommoConnected ? 'bg-teal-600 hover:bg-teal-500 text-white' : 'bg-gradient-to-r from-gray-700 to-gray-600 hover:from-gray-600 hover:to-gray-500 text-white'}`}>
+                                      {isLoadingGommoModels ? <ArrowPathIcon className="w-4 h-4 animate-spin"/> : <CheckIcon className="w-4 h-4"/>}
+                                      {isLoadingGommoModels ? 'Đang kết nối...' : 'Lưu & Kết nối tài khoản'}
+                                  </button>
+                              </div>
+                              {hasProxy && (
+                                  <p className="text-[10px] text-gray-500 text-center mt-1">
+                                      Kết nối an toàn qua: <span className="text-gray-400 font-mono">{APP_CONFIG.GOMMO_PROXY_URL?.split('//')[1]?.split('.')[0]}...</span>
+                                  </p>
+                              )}
+                         </div>
+                    </div>
+               </div>
+           )}
       </div>
   );
 
