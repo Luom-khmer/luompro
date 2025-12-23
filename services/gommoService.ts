@@ -11,17 +11,20 @@ import {
 
 const DOMAIN = "aivideoauto.com";
 
+// Use relative proxy path to solve CORS
+const BASE_URL = "/api/gommo";
+
 // Constants for endpoints
 const ENDPOINTS = {
-    MODELS: "https://api.gommo.net/ai/models",
-    CREATE_VIDEO: "https://api.gommo.net/ai/create-video",
-    CHECK_VIDEO: "https://api.gommo.net/ai/video",
-    CHECK_IMAGE: "https://api.gommo.net/ai/image",
-    UPLOAD_IMAGE: "https://api.gommo.net/ai/image-upload",
-    GENERATE_IMAGE: "https://api.gommo.net/ai/generateImage",
-    USER_INFO: "https://api.gommo.net/api/apps/go-mmo/ai/me",
-    UPSCALE: "https://api.gommo.net/api/apps/go-mmo/ai_templates/tools",
-    LIST_IMAGES: "https://api.gommo.net/ai/images" // NEW ENDPOINT
+    MODELS: `${BASE_URL}/ai/models`,
+    CREATE_VIDEO: `${BASE_URL}/ai/create-video`,
+    CHECK_VIDEO: `${BASE_URL}/ai/video`,
+    CHECK_IMAGE: `${BASE_URL}/ai/image`,
+    UPLOAD_IMAGE: `${BASE_URL}/ai/image-upload`,
+    GENERATE_IMAGE: `${BASE_URL}/ai/generateImage`,
+    USER_INFO: `${BASE_URL}/api/apps/go-mmo/ai/me`,
+    UPSCALE: `${BASE_URL}/api/apps/go-mmo/ai_templates/tools`,
+    LIST_IMAGES: `${BASE_URL}/ai/images`
 };
 
 // Helper to create body matching the requirement: 

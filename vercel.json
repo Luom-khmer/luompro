@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/gommo/:match*",
+      "destination": "https://api.gommo.net/:match*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
