@@ -11,14 +11,15 @@ import firebase from 'firebase/compat/app';
 import ControlPanel from './components/ControlPanel';
 import ImageCard from './components/ImageCard';
 import DonationModal from './components/DonationModal';
-import PricingModal from './components/PricingModal'; // NEW IMPORT
+import PricingModal from './components/PricingModal';
 import VisitorCounter from './components/VisitorCounter';
 import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
+import LandingPage from './components/LandingPage'; // NEW IMPORT
 
-import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon, SparklesIcon, BoltIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, PlusIcon, CurrencyDollarIcon, ArrowPathIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ShieldCheckIcon, HomeIcon, WalletIcon, SparklesIcon, BoltIcon, Squares2X2Icon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -32,7 +33,7 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     preserveAspectRatio: false,
     disableForeground: false,
     originalImageCompatibility: false,
-    preserveFaceDetail: false, // Default value for new option
+    preserveFaceDetail: false, 
     preserveSubjectPosition: true,
     keepOriginalOutfit: false,
     enableUpscale: false,
@@ -54,12 +55,13 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
 
 const App: React.FC = () => {
   // --- GLOBAL STATE ---
-  const [currentView, setCurrentView] = useState<ViewMode>('concept');
+  // Change default view to 'home'
+  const [currentView, setCurrentView] = useState<ViewMode>('home');
   
   // Modal States
   const [isDonationModalOpen, setIsDonationModalOpen] = useState<boolean>(false);
   const [donationModalMode, setDonationModalMode] = useState<'donate' | 'topup'>('donate');
-  const [isPricingModalOpen, setIsPricingModalOpen] = useState<boolean>(false); // New State
+  const [isPricingModalOpen, setIsPricingModalOpen] = useState<boolean>(false); 
   const [selectedPricingPackage, setSelectedPricingPackage] = useState<PricingPackage | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
@@ -92,7 +94,7 @@ const App: React.FC = () => {
   // If user logs out while in admin view, redirect to home
   useEffect(() => {
       if (!isAdmin && currentView === 'admin') {
-          setCurrentView('concept');
+          setCurrentView('home');
       }
   }, [isAdmin, currentView]);
 
@@ -623,9 +625,22 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0f1012] text-gray-200 font-sans overflow-hidden">
-        {/* APP HEADER */}
-        <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative">
+        {/* APP HEADER - Only show if not on Home, or keep it but minimal */}
+        {/* Requirement says "change tab back and forth", so we need header in tool view, but maybe not on landing page. 
+            However, user login/credits are in header. Let's keep it but handle navigation. */}
+        <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative z-50">
              <div className="w-1/3 flex items-center justify-start gap-3">
+                 {/* Back to Home Button (Visible in Tools) */}
+                 {currentView !== 'home' && (
+                     <button 
+                         onClick={() => setCurrentView('home')}
+                         className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm"
+                     >
+                         <Squares2X2Icon className="w-3.5 h-3.5 stroke-[2px]" />
+                         Chọn Công Cụ
+                     </button>
+                 )}
+                 
                  {/* Only show "Delete All" in Concept Modes */}
                  {(currentView === 'concept' || currentView === 'hack-concept') && (
                     <button 
@@ -638,7 +653,7 @@ const App: React.FC = () => {
                  )}
                  {currentView === 'admin' && (
                      <button 
-                         onClick={() => setCurrentView('concept')}
+                         onClick={() => setCurrentView('home')}
                          className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm"
                      >
                          <HomeIcon className="w-3.5 h-3.5 stroke-[2px]" />
@@ -651,25 +666,15 @@ const App: React.FC = () => {
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-white whitespace-nowrap">
                   LUOM PRO <span className="text-red-600">TOOL AI</span>
                 </h1>
-                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
-                    {currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 'FAKE CONCEPT STUDIO'}
-                </p>
-                {/* MODE SWITCHER TABS */}
-                {(currentView === 'concept' || currentView === 'hack-concept') && (
-                    <div className="flex gap-2 mt-2 bg-black/40 p-1 rounded-lg border border-gray-800">
-                        <button 
-                            onClick={() => setCurrentView('concept')}
-                            className={`px-4 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-1 ${currentView === 'concept' ? 'bg-blue-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
-                        >
-                            <SparklesIcon className="w-3 h-3" /> FAKE CONCEPT
-                        </button>
-                        <button 
-                            onClick={() => setCurrentView('hack-concept')}
-                            className={`px-4 py-1.5 rounded text-[10px] font-bold uppercase transition-all flex items-center gap-1 ${currentView === 'hack-concept' ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}
-                        >
-                            <BoltIcon className="w-3 h-3" /> HACK CONCEPT PRO
-                        </button>
-                    </div>
+                
+                {currentView === 'home' ? (
+                     <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
+                        TỔNG HỢP CÔNG CỤ SÁNG TẠO
+                     </p>
+                ) : (
+                    <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
+                        {currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : currentView === 'concept' ? 'FAKE CONCEPT STUDIO' : 'CHẾ ĐỘ XỬ LÝ'}
+                    </p>
                 )}
              </div>
 
@@ -677,7 +682,7 @@ const App: React.FC = () => {
                 {/* ADMIN BUTTON (Visible only if isAdmin) */}
                 {isAdmin && (
                     <button 
-                        onClick={() => setCurrentView(currentView === 'admin' ? 'concept' : 'admin')}
+                        onClick={() => setCurrentView(currentView === 'admin' ? 'home' : 'admin')}
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold shadow-sm transition-all whitespace-nowrap border ${currentView === 'admin' ? 'bg-red-900/40 border-red-500 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-red-500'}`}
                         title="Trang quản trị"
                     >
@@ -754,11 +759,15 @@ const App: React.FC = () => {
 
         {/* MAIN BODY SWITCHER */}
         <div className="flex-1 overflow-hidden relative">
-            {currentView === 'admin' ? (
+            {currentView === 'home' ? (
+                // LANDING PAGE (New)
+                <LandingPage onNavigate={setCurrentView} />
+            ) : currentView === 'admin' ? (
                 // ADMIN VIEW
                 <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
             ) : (
                 // CONCEPT VIEW (Standard & Hack)
+                // Wrapped in condition to ensure it only renders for appropriate views
                 <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
                     <main className="flex-1 flex flex-col bg-[#0f1012] min-h-0">
                         <div 

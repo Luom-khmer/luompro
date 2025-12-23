@@ -903,14 +903,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     
                     {renderPromptSection()}
                     
-                    {/* Hide Advanced Options in Hack Concept Pro */}
-                    {viewMode !== 'hack-concept' && (
-                        <>
-                            {renderOriginalOptions()}
-                            {renderVisualEffects()}
-                            {renderLightingEffects()}
-                        </>
-                    )}
+                    {/* Updated: Show Advanced Options in both Concept and Hack Concept Pro */}
+                    {renderOriginalOptions()}
+                    {renderVisualEffects()}
+                    {renderLightingEffects()}
                     
                     {renderGallery()}
                 </>
