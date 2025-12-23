@@ -203,6 +203,7 @@ export const uploadGommoImage = async (
 export interface GenerateGommoImageOptions {
     editImage?: boolean;
     base64Image?: string; // includes data:image/jpeg;base64, prefix
+    initImageUrl?: string; // NEW: Support URL directly to avoid large payloads
     ratio?: string; // Relaxed type to allow all string ratios like '3_4', '16_9' etc.
     resolution?: string; // e.g. '1k', '2k'
     subjects?: Array<{ id_base?: string; url?: string; data?: string }>;
@@ -230,7 +231,11 @@ export const generateGommoImage = async (
 
         if (options.editImage) {
             params.editImage = 'true';
-            if (options.base64Image) {
+            // Ưu tiên dùng URL nếu có để request nhẹ hơn
+            if (options.initImageUrl) {
+                params.init_image_url = options.initImageUrl;
+                params.image_url = options.initImageUrl; // Backup param name just in case
+            } else if (options.base64Image) {
                 params.base64Image = options.base64Image;
             }
         } else {
@@ -320,7 +325,7 @@ export const upscaleGommoImage = async (
 export const pollGommoImageCompletion = async (
     accessToken: string,
     idBase: string,
-    maxRetries = 60, // ~3 minutes
+    maxRetries = 600, // Tăng lên 600 lần (30 phút) để đáp ứng yêu cầu "đợi đến khi xong"
     interval = 3000
 ): Promise<string> => {
     let retries = 0;
@@ -335,7 +340,7 @@ export const pollGommoImageCompletion = async (
                 // If SUCCESS but no URL, weird case, might check structure again
                 if (data.imageInfo && data.imageInfo.url) return data.imageInfo.url;
                 throw new Error("Trạng thái SUCCESS nhưng không tìm thấy URL.");
-            } else if (status === 'ERROR') {
+            } else if (status === 'ERROR' || status === 'FAILED') {
                  throw new Error("Gommo báo lỗi: Tạo ảnh thất bại.");
             }
             
@@ -343,10 +348,8 @@ export const pollGommoImageCompletion = async (
             
         } catch (err: any) {
             console.warn("Polling status error:", err.message);
-            // If it's a critical logic error from API (not network), we might want to throw
-            if (err.message.includes("not found")) {
-                 // Sometimes ID is not immediately available?
-            } else if (err.message.includes("báo lỗi")) {
+            // Ignore temporary network errors during polling
+            if (err.message.includes("báo lỗi")) {
                 throw err;
             }
         }
@@ -354,7 +357,7 @@ export const pollGommoImageCompletion = async (
         await new Promise(r => setTimeout(r, interval));
         retries++;
     }
-    throw new Error("Quá thời gian chờ xử lý (Timeout).");
+    throw new Error("Quá thời gian chờ xử lý (Timeout > 30 phút).");
 };
 
 /**
