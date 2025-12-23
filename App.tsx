@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -303,7 +304,8 @@ const App: React.FC = () => {
              if (!finalSettings.gommoApiKey) throw new Error("Vui lòng nhập Gommo Access Token.");
              
              // Optimize and Resize Image for Gommo
-             const base64Data = await resizeImage(file, 1024, 1024, 0.9);
+             // Reduced quality to 0.8 to prevent payload timeout
+             const base64Data = await resizeImage(file, 1024, 1024, 0.8);
              
              // Create/Edit (Standard Gen)
              const modelId = finalSettings.gommoModel || 'google_image_gen_banana_pro';
@@ -346,7 +348,8 @@ const App: React.FC = () => {
 
                  // Ảnh 2: Ảnh mẫu hack nền (nếu có) -> Subject 2
                  if (finalSettings.referenceImage) {
-                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.9);
+                     // Reduced ref quality to 0.8
+                     const refBase64Raw = await resizeImage(finalSettings.referenceImage, 1024, 1024, 0.8);
                      const refMime = finalSettings.referenceImage.type || 'image/jpeg';
                      subjectsPayload.push({
                          data: `data:${refMime};base64,${refBase64Raw}`

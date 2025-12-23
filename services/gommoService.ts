@@ -58,12 +58,20 @@ const createBody = (accessToken: string, params: Record<string, any>) => {
 
 // Helper to handle Fetch responses
 const processResponse = async (response: Response) => {
+    // Xử lý lỗi HTTP level
     if (!response.ok) {
+        // Xử lý lỗi 524 Timeout từ Cloudflare
+        if (response.status === 524) {
+            throw new Error("Lỗi Timeout (524): Proxy không nhận được phản hồi từ Gommo. Vui lòng cập nhật code Worker (Xóa header Host) hoặc thử lại sau.");
+        }
+
         let errorMessage = `HTTP Error ${response.status}`;
         try {
             const errorData = await response.json();
             if (errorData.error && errorData.error.message) {
                 errorMessage = errorData.error.message;
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
             }
         } catch (e) {
             // If response is not JSON, use status text
@@ -103,10 +111,7 @@ export const fetchGommoModels = async (accessToken: string, type: 'video' | 'ima
         const response = await fetch(ENDPOINTS.MODELS, {
             method: 'POST',
             body: body
-            // Note: No custom headers. Browser sets Content-Type automatically for URLSearchParams.
-            // This prevents preflight OPTIONS request in many cases.
         });
-        
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
@@ -144,7 +149,6 @@ export const createGommoVideo = async (
             method: 'POST',
             body: body
         });
-        
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
@@ -164,7 +168,6 @@ export const checkGommoVideoStatus = async (
             method: 'POST',
             body: body
         });
-        
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
@@ -195,7 +198,6 @@ export const uploadGommoImage = async (
             method: 'POST',
             body: body
         });
-        
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
@@ -251,7 +253,6 @@ export const generateGommoImage = async (
             method: 'POST',
             body: body
         });
-
         return await processResponse(response);
     } catch (error) {
         throw handleGommoError(error);
@@ -325,35 +326,28 @@ export const upscaleGommoImage = async (
 export const pollGommoImageCompletion = async (
     accessToken: string,
     idBase: string,
-    maxRetries = 2160, // 2160 lần * 5 giây = ~3 tiếng (Tăng thời gian chờ theo yêu cầu)
+    maxRetries = 2160, 
     interval = 5000
 ): Promise<string> => {
     let retries = 0;
     while (retries < maxRetries) {
         try {
             const data = await checkGommoImageStatus(accessToken, idBase);
-            // Expected response: { id_base, status, url, ... }
             const status = data.status;
 
             if (status === 'SUCCESS') {
                 if (data.url) return data.url;
-                // If SUCCESS but no URL, weird case, might check structure again
                 if (data.imageInfo && data.imageInfo.url) return data.imageInfo.url;
                 throw new Error("Trạng thái SUCCESS nhưng không tìm thấy URL.");
             } else if (status === 'ERROR' || status === 'FAILED') {
                  throw new Error("Gommo báo lỗi: Tạo ảnh thất bại.");
             }
-            
-            // If PENDING_ACTIVE or PENDING_PROCESSING, wait and retry
-            
         } catch (err: any) {
             console.warn("Polling status error:", err.message);
-            // Ignore temporary network errors or polling glitches
             if (err.message.includes("báo lỗi")) {
                 throw err;
             }
         }
-
         await new Promise(r => setTimeout(r, interval));
         retries++;
     }
