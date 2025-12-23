@@ -87,7 +87,7 @@ const handleGeminiError = (error: any, modelName: string = '') => {
     }
 
     if (msg.includes('404') || msg.includes('not found')) {
-        return new Error(`Lỗi Model (404): Model '${modelName}' không khả dụng.`);
+        return new Error(`Lỗi Model (404): Model '${modelName}' không khả dụng (Google chưa hỗ trợ tại khu vực này hoặc sai tên).`);
     }
 
     if (msg.includes('400')) {
@@ -105,21 +105,21 @@ export const validateApiKey = async (apiKey: string): Promise<{ valid: boolean; 
     try {
         const ai = new GoogleGenAI({ apiKey: keys[0] });
         await ai.models.generateContent({
-            model: 'gemini-3-flash-preview', // Updated to valid model
+            model: 'gemini-2.0-flash-exp', // Updated to 2.0 Flash Exp for better Vision support
             contents: { parts: [{ text: 'ping' }] },
             config: { maxOutputTokens: 1 }
         });
         return { valid: true };
     } catch (error: any) {
-        const err = handleGeminiError(error, 'gemini-3-flash-preview');
+        const err = handleGeminiError(error, 'gemini-2.0-flash-exp');
         return { valid: false, message: err.message };
     }
 };
 
 // --- IMAGE HELPERS ---
 
-// UPDATED: Default quality reduced to 0.5 to prevent Cloudflare 524 Timeout
-export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quality = 0.5): Promise<string> => {
+// UPDATED: Forced JPEG compression to avoid 524 Timeouts
+export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quality = 0.6): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -142,15 +142,14 @@ export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quali
             reject(new Error("Could not get canvas context"));
             return;
         }
+        // Fill white background for JPEG conversion (incase of transparent PNG)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        
         ctx.drawImage(img, 0, 0, width, height);
         
-        let mimeType = file.type;
-        if (mimeType !== 'image/png' && mimeType !== 'image/webp') {
-            mimeType = 'image/jpeg';
-        }
-
-        // Apply quality compression here
-        const dataUrl = canvas.toDataURL(mimeType, quality);
+        // FORCE JPEG for maximum compression to avoid Cloudflare 524
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
         resolve(dataUrl.split(',')[1]);
       };
       img.onerror = (err) => reject(err);
@@ -178,9 +177,6 @@ export const generateStyledImage = async (
   originalFile: File,
   settings: GenerationSettings
 ): Promise<string> => {
-    // Nếu người dùng lỡ gọi hàm này (do config cũ), ta sẽ throw lỗi hướng dẫn chuyển sang Gommo
-    // Hoặc vẫn để nó chạy như fallback. 
-    // Theo yêu cầu "không gọi gg api khi tạo ảnh", ta sẽ return lỗi nếu bị gọi.
     throw new Error("Chế độ tạo ảnh bằng Google API đang tắt. Vui lòng sử dụng Aivideoauto (Gommo).");
 };
 
@@ -189,8 +185,8 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
     return withKeyRotation(apiKey, async (ai) => {
         // Resize ảnh để phân tích nhanh hơn
         const base64Data = await resizeImage(file, 1024, 1024, 0.5);
-        let mimeType = file.type;
-        if (mimeType !== 'image/png' && mimeType !== 'image/webp') mimeType = 'image/jpeg';
+        // Analysis accepts JPEG from resizeImage
+        const mimeType = 'image/jpeg';
 
         let prompt = "";
         
@@ -209,7 +205,7 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         }
 
         const response = await ai.models.generateContent({
-          model: 'gemini-3-flash-preview', // Updated to valid model
+          model: 'gemini-2.0-flash-exp', // Updated to 2.0 Flash Exp for better Vision support
           contents: { 
             parts: [
               { inlineData: { mimeType, data: base64Data } }, 
@@ -219,5 +215,5 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         });
 
         return response.text?.trim() || "";
-    }, 'gemini-3-flash-preview');
+    }, 'gemini-2.0-flash-exp');
 };
