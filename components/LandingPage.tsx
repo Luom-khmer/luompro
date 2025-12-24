@@ -75,7 +75,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f1012] flex flex-col items-center justify-center relative overflow-hidden font-sans selection:bg-red-500 selection:text-white">
+    <div className="min-h-screen bg-[#0f1012] flex flex-col items-center justify-between md:justify-center relative overflow-hidden font-sans selection:bg-red-500 selection:text-white py-8 md:py-0">
       
       {/* Background Ambience */}
       <div className="absolute inset-0 pointer-events-none">
@@ -84,7 +84,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Header Text */}
-      <div className="text-center mb-12 z-10 animate-fade-in">
+      <div className="text-center mb-4 md:mb-12 z-10 animate-fade-in mt-4 md:mt-0 px-4">
         <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white mb-2">
             CÔNG CỤ <span className="text-orange-500">AI</span>
         </h1>
@@ -94,7 +94,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Carousel Container */}
-      <div className="relative w-full max-w-7xl px-4 md:px-10 flex items-center justify-center gap-4 z-10 h-[450px]">
+      <div className="relative w-full max-w-7xl px-0 md:px-10 flex items-center justify-center gap-4 z-10 h-auto md:h-[450px] flex-1 md:flex-none">
         
         {/* Navigation Buttons */}
         <button onClick={handlePrev} className="hidden md:flex absolute left-4 z-20 w-12 h-12 rounded-full bg-gray-800/50 border border-gray-700 hover:bg-gray-700 hover:border-gray-500 items-center justify-center text-white transition-all">
@@ -105,7 +105,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </button>
 
         {/* Cards */}
-        <div className="flex items-center justify-center gap-4 perspective-1000 w-full overflow-x-auto md:overflow-visible py-10 px-4 md:px-0 no-scrollbar snap-x snap-mandatory">
+        <div className="flex items-center justify-start md:justify-center gap-4 perspective-1000 w-full overflow-x-auto md:overflow-visible py-10 px-[calc(50%-110px)] md:px-0 no-scrollbar snap-x snap-mandatory h-full">
             {TOOLS.map((tool, index) => {
                 const isActive = index === activeIndex;
                 const isNeighbor = Math.abs(index - activeIndex) === 1;
@@ -170,21 +170,36 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       </div>
 
       {/* Footer / Instructions */}
-      <div className="absolute bottom-8 flex gap-4 text-[10px] text-gray-600 uppercase font-bold tracking-widest">
+      <div className="relative md:absolute md:bottom-8 flex gap-4 text-[10px] text-gray-600 uppercase font-bold tracking-widest z-20 mt-4 md:mt-0">
          <div className="flex items-center gap-2">
-            <span className="px-1.5 py-0.5 border border-gray-700 rounded bg-gray-800">←</span>
-            <span className="px-1.5 py-0.5 border border-gray-700 rounded bg-gray-800">→</span>
+            <button 
+                onClick={handlePrev} 
+                className="px-1.5 py-0.5 border border-gray-700 rounded bg-gray-800 hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all cursor-pointer"
+            >
+                ←
+            </button>
+            <button 
+                onClick={handleNext} 
+                className="px-1.5 py-0.5 border border-gray-700 rounded bg-gray-800 hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all cursor-pointer"
+            >
+                →
+            </button>
             <span>Di chuyển</span>
          </div>
          <div className="w-px h-4 bg-gray-800"></div>
          <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 border border-gray-700 rounded bg-gray-800">ENTER</span>
+            <button 
+                onClick={handleEnter} 
+                className="px-2 py-0.5 border border-gray-700 rounded bg-gray-800 hover:bg-gray-700 hover:text-white hover:border-gray-500 transition-all cursor-pointer"
+            >
+                ENTER
+            </button>
             <span>Chọn</span>
          </div>
       </div>
       
-      <div className="absolute bottom-2 text-[9px] text-gray-700 font-mono">
-         BẢN QUYỀN ỨNG DỤNG AI THUỘC SỞ HỮU TIẾN ADOBE
+      <div className="relative md:absolute bottom-2 text-[9px] text-gray-700 font-mono mt-2 md:mt-0">
+         BẢN QUYỀN ỨNG DỤNG AI THUỘC SỞ HỮU LƯỢM
       </div>
 
     </div>
