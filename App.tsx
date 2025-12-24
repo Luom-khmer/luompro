@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -19,7 +18,6 @@ import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
 import LandingPage from './components/LandingPage'; 
-import OnboardingOverlay from './components/OnboardingOverlay'; // Import mới
 
 import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -213,8 +211,6 @@ const App: React.FC = () => {
       const confirm = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
       if (confirm) {
           await logoutUser();
-          // Reset key when logout to force re-entry or safety
-          setGlobalApiKey(''); 
       }
   };
 
@@ -507,18 +503,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#0f1012] text-gray-200 font-sans overflow-hidden">
-        
-        {/* Onboarding Overlay - Forces Login and API Key setup */}
-        <OnboardingOverlay 
-            currentUser={currentUser} 
-            onLogin={handleLogin}
-            currentApiKey={globalApiKey}
-            onSaveApiKey={(key) => {
-                setGlobalApiKey(key);
-                localStorage.setItem('gemini_api_key', key);
-            }}
-        />
-
         <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative z-50">
              <div className="w-1/3 flex items-center justify-start gap-3">
                  {currentView !== 'home' && (
