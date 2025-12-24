@@ -1,4 +1,5 @@
 
+
 import { 
     GommoModelResponse, 
     GommoImageUploadResponse, 
@@ -217,6 +218,7 @@ export interface GenerateGommoImageOptions {
     resolution?: string; // e.g. '1k', '2k'
     subjects?: Array<{ id_base?: string; url?: string; data?: string }>;
     project_id?: string;
+    mode?: string; // Added mode
 }
 
 export const generateGommoImage = async (
@@ -236,6 +238,10 @@ export const generateGommoImage = async (
 
         if (options.resolution) {
             params.resolution = options.resolution;
+        }
+
+        if (options.mode) {
+            params.mode = options.mode;
         }
 
         if (options.editImage) {

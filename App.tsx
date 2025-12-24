@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -50,7 +51,10 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     // ENFORCE GOMMO AS DEFAULT
     aiProvider: 'gommo',
     gommoModel: 'google_image_gen_banana_pro', 
-    gommoApiKey: ''
+    gommoApiKey: '',
+    gommoMode: undefined,
+    gommoResolution: undefined,
+    quantity: 1
 };
 
 const App: React.FC = () => {
@@ -241,15 +245,28 @@ const App: React.FC = () => {
 
       // STRICT PROVIDER ENFORCEMENT: ALWAYS GOMMO
       const provider = 'gommo'; 
-      let estimatedCost = 1; 
+      let estimatedCost = 0; 
 
       if (provider === 'gommo') {
           const modelId = activeSettings.gommoModel || 'google_image_gen_banana_pro';
           const modelInfo = gommoModelsCache.find(m => m.model === modelId);
-          if (modelInfo && typeof modelInfo.price === 'number') {
-              estimatedCost = modelInfo.price;
+          
+          if (modelInfo) {
+              // Calculate dynamic price based on mode and resolution
+              if (modelInfo.prices && modelInfo.prices.length > 0) {
+                  const mode = activeSettings.gommoMode;
+                  const res = activeSettings.gommoResolution || activeSettings.imageSize;
+                  const matched = modelInfo.prices.find(p => {
+                      const modeMatch = !p.mode || p.mode === mode;
+                      const resMatch = !p.resolution || p.resolution === res;
+                      return modeMatch && resMatch;
+                  });
+                  estimatedCost = matched ? matched.price : (modelInfo.price || 150);
+              } else {
+                  estimatedCost = modelInfo.price || 150;
+              }
           } else {
-              estimatedCost = 4;
+              estimatedCost = 150; // Fallback
           }
       }
 
@@ -280,6 +297,7 @@ const App: React.FC = () => {
              const modelId = finalSettings.gommoModel || 'google_image_gen_banana_pro';
              let prompt = finalSettings.userPrompt || "Enhance image";
              
+             // Handle Ratio format from JSON (e.g. 1_1, 16_9) or default
              let gommoRatio = '1_1';
              if (finalSettings.aspectRatio) {
                  const raw = finalSettings.aspectRatio.replace(/\s*•.*/, ''); 
@@ -290,7 +308,8 @@ const App: React.FC = () => {
                  }
              }
 
-             let gommoResolution = (finalSettings.imageSize || '1k').toLowerCase();
+             // Resolution logic
+             let gommoResolution = (finalSettings.gommoResolution || finalSettings.imageSize || '1k').toLowerCase();
              
              let mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
              const fullBase64 = `data:${mimeType};base64,${base64Data}`;
@@ -323,7 +342,8 @@ const App: React.FC = () => {
                     ratio: gommoRatio,
                     resolution: gommoResolution,
                     project_id: projectId,
-                    subjects: subjectsPayload
+                    subjects: subjectsPayload,
+                    mode: finalSettings.gommoMode // Pass the mode (fast, relaxed, etc.)
                  }
              );
 

@@ -1,4 +1,5 @@
 
+
 export interface VoiceOption {
   id: string;
   name: string;
@@ -61,6 +62,9 @@ export interface GenerationSettings {
     aiProvider: 'gemini' | 'gommo';
     gommoApiKey?: string;
     gommoModel?: string;
+    gommoMode?: string; // New field for selecting mode (fast, relaxed, etc.)
+    gommoResolution?: string; // New field for specific resolution type (1k, 2k, 4k)
+    quantity?: number; // Added for QTY input
 
     // --- Hack Concept Pro Specific ---
     hackPrompts?: {
@@ -147,8 +151,14 @@ export interface GommoMode {
   description: string;
 }
 
+export interface GommoPriceOption {
+    mode?: string;
+    resolution?: string;
+    price: number;
+}
+
 export interface GommoModel {
-  id_base?: string; // Made optional as API JSON doesn't always return it
+  id_base?: string;
   name: string;
   server: string;
   model: string;
@@ -159,6 +169,17 @@ export interface GommoModel {
   ratios?: GommoRatio[];
   resolutions?: GommoResolution[];
   modes?: GommoMode[];
+  prices?: GommoPriceOption[]; // New field for dynamic pricing
+  
+  // Feature flags
+  withSubject?: boolean;
+  withFace?: boolean;
+  withSence?: boolean;
+  withStyle?: boolean;
+  startImageAndEnd?: boolean;
+  withReference?: boolean;
+  extendVideo?: boolean;
+  maxSubject?: number;
 }
 
 export interface GommoModelResponse {

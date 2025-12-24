@@ -1,7 +1,6 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
-import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon } from '@heroicons/react/24/outline';
+import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon, BanknotesIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { analyzeReferenceImage, analyzeHackConceptImage, validateApiKey } from '../services/geminiService';
 import { fetchGommoModels } from '../services/gommoService';
 import { APP_CONFIG } from '../config';
@@ -146,6 +145,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isLoadingGommoModels, setIsLoadingGommoModels] = useState(false);
   const [gommoConnected, setGommoConnected] = useState(false);
   const [gommoError, setGommoError] = useState<string | null>(null);
+  
+  // Model Select Dropdown State
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // --- HACK CONCEPT PRO SPECIFIC STATES ---
   const [hackModalStep, setHackModalStep] = useState<'intro' | 'analyzing' | 'selection' | 'off'>('off');
@@ -155,16 +158,53 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const isGommoProvider = true; // FORCE GOMMO ALWAYS FOR UI
   const hasProxy = !!APP_CONFIG.GOMMO_PROXY_URL;
   
-  const activeGommoModel = React.useMemo(() => {
+  const activeGommoModel = useMemo(() => {
      return gommoModelsList.find(m => m.model === settings.gommoModel) || null;
   }, [gommoModelsList, settings.gommoModel]);
 
-  const activeRatios = React.useMemo(() => {
+  const activeRatios = useMemo(() => {
       if (activeGommoModel && activeGommoModel.ratios) {
           return activeGommoModel.ratios.map(r => r.name);
       }
       return ASPECT_RATIO_OPTIONS;
   }, [activeGommoModel]);
+
+  // Click outside to close dropdown
+  useEffect(() => {
+      function handleClickOutside(event: MouseEvent) {
+          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+              setIsModelDropdownOpen(false);
+          }
+      }
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Calculate Price logic based on JSON structure
+  const currentPrice = useMemo(() => {
+      if (!activeGommoModel) return 0;
+      
+      // Base price or dynamic
+      let unitPrice = activeGommoModel.price || 0;
+
+      // If the model has specific pricing rules based on mode/resolution
+      if (activeGommoModel.prices && activeGommoModel.prices.length > 0) {
+          const mode = settings.gommoMode;
+          const res = settings.gommoResolution;
+          
+          const matchedPrice = activeGommoModel.prices.find(p => {
+              // Match logic: If mode is defined in rule, must match. If res is defined, must match.
+              const modeMatch = !p.mode || p.mode === mode;
+              const resMatch = !p.resolution || p.resolution === res;
+              return modeMatch && resMatch;
+          });
+          
+          if (matchedPrice) unitPrice = matchedPrice.price;
+      }
+      
+      const qty = settings.quantity || 1;
+      return unitPrice * qty;
+  }, [activeGommoModel, settings.gommoMode, settings.gommoResolution, settings.quantity]);
 
   // Validate Aspect Ratio Effect
   useEffect(() => {
@@ -175,6 +215,39 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           }
       }
   }, [activeRatios, settings.aspectRatio]);
+
+  // When model changes, reset mode and resolution to first available if needed
+  useEffect(() => {
+      if (activeGommoModel) {
+          const updates: Partial<GenerationSettings> = {};
+          
+          // Set default mode if not set or invalid
+          if (activeGommoModel.modes && activeGommoModel.modes.length > 0) {
+             const currentModeValid = activeGommoModel.modes.find(m => m.type === settings.gommoMode);
+             if (!currentModeValid) {
+                 updates.gommoMode = activeGommoModel.modes[0].type;
+             }
+          } else {
+             // If no modes available, clear it
+             if (settings.gommoMode) updates.gommoMode = undefined;
+          }
+
+          // Set default resolution if not set or invalid
+          if (activeGommoModel.resolutions && activeGommoModel.resolutions.length > 0) {
+              const currentResValid = activeGommoModel.resolutions.find(r => r.type === settings.gommoResolution);
+              if (!currentResValid) {
+                  updates.gommoResolution = activeGommoModel.resolutions[0].type;
+                  updates.imageSize = activeGommoModel.resolutions[0].type; // Sync legacy field
+              }
+          } else {
+              if (settings.gommoResolution) updates.gommoResolution = undefined;
+          }
+          
+          if (Object.keys(updates).length > 0) {
+              onSettingsChange(updates);
+          }
+      }
+  }, [activeGommoModel]);
 
   // Validate API Key changes
   useEffect(() => {
@@ -192,7 +265,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           }
       }
       return () => { isMounted = false; };
-  }, [settings.gommoApiKey]); // Added dependency to re-check when key changes
+  }, [settings.gommoApiKey]);
 
   // --- Handlers ---
 
@@ -220,7 +293,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           if (models.length > 0) {
               setGommoModelsList(models);
               setGommoConnected(true);
-              if (onModelsLoaded) onModelsLoaded(models); // Pass models up
+              if (onModelsLoaded) onModelsLoaded(models);
 
               const currentExists = models.find(m => m.model === settings.gommoModel);
               if (!currentExists && models.length > 0) {
@@ -265,7 +338,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       return `Thay đổi hoàn toàn bối cảnh sang:\n[${content}]\nGiữ nguyên kích thước và vị trí của chủ thể gốc.`;
   };
 
-  // Helper function to add/remove tags from prompt
   const updatePromptWithTag = (prompt: string, tag: string, add: boolean): string => {
       let current = prompt || "";
       if (add) {
@@ -437,8 +509,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       setPendingReferenceFile(null);
       setHackModalStep('off');
       setActiveHackTab('fullBody');
-      // Set initial prompts (Detailed is already in userPrompt from analysis step)
-      // Also apply the Full Body to the tab state logic if needed, but we keep detailed in main
   };
 
   const handleHackTabSwitch = (tab: 'fullBody' | 'portrait' | 'closeUp') => {
@@ -489,7 +559,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             <PaintBrushIcon className="w-4 h-4" /> Studio Tạo Ảnh
           </button>
           
-          {/* Cấu Hình Key - Hiển thị cho tất cả mọi người */}
           <button onClick={() => setActiveTab('keys')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-bold transition-all duration-300 ${activeTab === 'keys' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
               <KeyIcon className="w-4 h-4" /> Cấu Hình Key
           </button>
@@ -568,73 +637,167 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
   );
 
-  const renderModelList = () => {
-      // ONLY SHOW GOMMO LIST
+  const renderModelConfigCard = () => {
+      // Find the unit price for display
+      let unitPrice = 0;
+      if (activeGommoModel) {
+          unitPrice = activeGommoModel.price || 0;
+          if (activeGommoModel.prices && activeGommoModel.prices.length > 0) {
+              const mode = settings.gommoMode;
+              const res = settings.gommoResolution;
+              const matchedPrice = activeGommoModel.prices.find(p => {
+                  const modeMatch = !p.mode || p.mode === mode;
+                  const resMatch = !p.resolution || p.resolution === res;
+                  return modeMatch && resMatch;
+              });
+              if (matchedPrice) unitPrice = matchedPrice.price;
+          }
+      }
+
       return (
-          <div className="border border-teal-500/30 rounded-lg p-4 bg-[#1a1a1a] mb-4">
-              <div className="flex justify-between items-center mb-2">
-                  <label className="block text-sm font-bold text-teal-400 uppercase tracking-wide flex items-center gap-2"><CpuChipIcon className="w-4 h-4" /> Luom premium</label>
-                  <button onClick={handleSaveAndTestGommoToken} className="text-[10px] text-teal-500 hover:underline flex items-center gap-1"><ArrowPathIcon className={`w-3 h-3 ${isLoadingGommoModels ? 'animate-spin' : ''}`}/> Reload</button>
+          <div className="bg-[#1e1e1e] p-4 rounded-2xl border border-gray-800 shadow-xl mb-4 relative overflow-visible">
+              
+              {/* Header */}
+              <div className="flex justify-between items-center mb-4">
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">MODEL</label>
+                  <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-gray-500 font-medium">Đa model</span>
+                      {/* Placeholder Toggle Switch */}
+                      <div className="w-8 h-4 bg-gray-700 rounded-full relative cursor-pointer opacity-50">
+                          <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full"></div>
+                      </div>
+                  </div>
               </div>
-              {gommoModelsList.length === 0 ? (
-                  <div className="text-center p-4 bg-black/20 rounded border border-dashed border-gray-700">
-                      <p className="text-xs text-gray-500">Chưa tải được danh sách Model.</p>
-                      {isAdmin && (
-                         <p className="text-[10px] text-gray-600">Vui lòng sang tab <strong className="text-teal-400 cursor-pointer" onClick={() => setActiveTab('keys')}>Cấu Hình Key</strong> để kết nối.</p>
-                      )}
-                      {!isAdmin && (
-                          <p className="text-[10px] text-gray-600">Vui lòng liên hệ Admin để kiểm tra kết nối.</p>
-                      )}
+
+              {/* Model Selector Dropdown */}
+              <div className="relative mb-5" ref={dropdownRef}>
+                  <button 
+                      onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                      className="w-full bg-[#151515] border border-gray-700 hover:border-gray-500 text-white font-bold py-3 px-4 rounded-xl flex justify-between items-center transition-all focus:ring-1 focus:ring-sky-500/50"
+                  >
+                      <span className="truncate">{activeGommoModel ? activeGommoModel.name : (isLoadingGommoModels ? "Đang tải..." : "Chọn Model")}</span>
+                      <ChevronDownIcon className={`w-5 h-5 text-gray-400 transition-transform ${isModelDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {/* Dropdown List */}
+                  {isModelDropdownOpen && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-[#1a1a1a] border border-gray-700 rounded-xl shadow-2xl z-50 max-h-60 overflow-y-auto custom-scrollbar animate-fade-in">
+                          {gommoModelsList.length === 0 ? (
+                              <div className="p-3 text-xs text-gray-500 text-center">Không có dữ liệu</div>
+                          ) : (
+                              gommoModelsList.map((model) => (
+                                  <div 
+                                      key={model.model}
+                                      onClick={() => {
+                                          onSettingsChange({ gommoModel: model.model });
+                                          setIsModelDropdownOpen(false);
+                                      }}
+                                      className={`px-4 py-3 text-sm cursor-pointer border-b border-gray-800 last:border-0 hover:bg-[#252525] flex justify-between items-center ${settings.gommoModel === model.model ? 'bg-sky-900/20 text-sky-400 font-bold' : 'text-gray-300'}`}
+                                  >
+                                      <span>{model.name}</span>
+                                      {settings.gommoModel === model.model && <CheckIcon className="w-4 h-4" />}
+                                  </div>
+                              ))
+                          )}
+                      </div>
+                  )}
+              </div>
+
+              {/* Configuration Grid */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-4 mb-5">
+                  {/* RATIO */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">RATIO</label>
+                      <div className="relative">
+                          <select 
+                              value={settings.aspectRatio}
+                              onChange={(e) => onSettingsChange({ aspectRatio: e.target.value })}
+                              className="w-full bg-[#151515] text-white text-xs font-bold py-2.5 px-3 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-sky-500 cursor-pointer"
+                          >
+                              {activeRatios.map(r => (
+                                  <option key={r} value={r}>{r}</option>
+                              ))}
+                          </select>
+                          <ChevronDownIcon className="w-3 h-3 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                   </div>
-              ) : (
-                  <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
-                      {gommoModelsList.map((m) => (
-                          <button key={m.model} onClick={() => onSettingsChange({ gommoModel: m.model })} className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center text-center gap-1 h-full min-h-[50px] ${settings.gommoModel === m.model ? 'bg-teal-600 border-teal-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`} title={`${m.name}\n${m.description || ''}`}>
-                              <span className="line-clamp-2">{m.name}</span>
-                              {m.price !== undefined && <span className="text-[10px] opacity-70 font-normal bg-black/30 px-1 rounded">{m.price} credits</span>}
-                          </button>
-                      ))}
+
+                  {/* MODE */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">MODE</label>
+                      <div className="relative">
+                          <select 
+                              value={settings.gommoMode || ''}
+                              onChange={(e) => onSettingsChange({ gommoMode: e.target.value })}
+                              className="w-full bg-[#151515] text-white text-xs font-bold py-2.5 px-3 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-sky-500 cursor-pointer"
+                              disabled={!activeGommoModel?.modes?.length}
+                          >
+                              {activeGommoModel?.modes?.map(m => (
+                                  <option key={m.type} value={m.type}>{m.name}</option>
+                              ))}
+                              {(!activeGommoModel?.modes?.length) && <option value="">Default</option>}
+                          </select>
+                          <ChevronDownIcon className="w-3 h-3 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
                   </div>
-              )}
+
+                  {/* RES */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">RES</label>
+                      <div className="relative">
+                          <select 
+                              value={settings.gommoResolution || ''}
+                              onChange={(e) => onSettingsChange({ gommoResolution: e.target.value, imageSize: e.target.value })}
+                              className="w-full bg-[#151515] text-white text-xs font-bold py-2.5 px-3 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-sky-500 cursor-pointer"
+                              disabled={!activeGommoModel?.resolutions?.length}
+                          >
+                              {activeGommoModel?.resolutions?.map(r => (
+                                  <option key={r.type} value={r.type}>{r.name}</option>
+                              ))}
+                              {(!activeGommoModel?.resolutions?.length) && <option value="1k">1k</option>}
+                          </select>
+                          <ChevronDownIcon className="w-3 h-3 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                  </div>
+
+                  {/* QTY */}
+                  <div>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">QTY</label>
+                      <input 
+                          type="number"
+                          min="1"
+                          max="10"
+                          value={settings.quantity || 1}
+                          onChange={(e) => onSettingsChange({ quantity: Math.max(1, Math.min(10, parseInt(e.target.value) || 1)) })}
+                          className="w-full bg-[#151515] text-white text-xs font-bold py-2.5 px-3 rounded-lg border border-gray-700 focus:outline-none focus:border-sky-500 text-center"
+                      />
+                  </div>
+              </div>
+
+              {/* Price Calculation Footer */}
+              <div className="flex items-center justify-between pt-2 mt-2">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                      <BanknotesIcon className="w-4 h-4 text-yellow-600" />
+                      <span>{unitPrice}</span>
+                      <span className="text-gray-600">×</span>
+                      <span>{settings.quantity || 1}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-yellow-500 font-bold text-sm">
+                      <span>=</span>
+                      <BanknotesIcon className="w-4 h-4" />
+                      <span>{currentPrice}</span>
+                  </div>
+              </div>
           </div>
       );
   };
 
   const renderSizeConfig = () => {
-    const showResolution = (activeGommoModel && activeGommoModel.resolutions && activeGommoModel.resolutions.length > 0);
-    const resolutions = activeGommoModel ? (activeGommoModel.resolutions || []) : [];
-
-    // Chỉ hiển thị khi đã chọn Model
+    // Only show Aspect Ratio here. Resolution is now inside the Model card.
     const isModelSelected = !!activeGommoModel;
     if (!isModelSelected) return null;
 
-    return (
-    <div className="border border-gray-700 rounded-lg bg-[#1a1a1a] mb-4">
-        <div className="p-4 border-b border-gray-800">
-            <h3 className="font-semibold text-gray-200 text-sm uppercase tracking-wide flex items-center gap-2"><ArrowsPointingOutIcon className="w-4 h-4 text-purple-500" /> Kích thước & Độ phân giải</h3>
-        </div>
-        <div className="p-4">
-            <div className="mb-4">
-                <label className="text-xs text-gray-500 block mb-2 font-medium">Tỷ lệ khung hình <span className="text-teal-500 font-normal ml-1 text-[10px]">(Theo Model)</span></label>
-                <div className="grid grid-cols-4 gap-2">
-                    {activeRatios.map((ratio) => (
-                        <button key={ratio} onClick={() => onSettingsChange({ aspectRatio: ratio })} className={`py-1.5 rounded text-xs font-bold border transition-all truncate px-1 ${settings.aspectRatio === ratio ? 'bg-purple-600 border-purple-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800'}`} title={ratio}>{ratio}</button>
-                    ))}
-                </div>
-            </div>
-            {showResolution && (
-                <div className="flex flex-col gap-2">
-                    <label className="text-xs text-gray-500 block font-medium">Độ phân giải</label>
-                    <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700 flex-wrap gap-1">
-                        {resolutions.map((res) => (
-                            <button key={res.type} onClick={() => onSettingsChange({ imageSize: res.type })} className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all min-w-[50px] ${settings.imageSize === res.type ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>{res.name}</button>
-                        ))}
-                    </div>
-                </div>
-            )}
-        </div>
-    </div>
-    );
+    return null; // Size config moved into model card
   };
 
   const renderReferenceImageSection = () => {
@@ -1015,10 +1178,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
             
             {activeTab === 'studio' ? (
                 <>
-                    {/* renderServiceSelection removed - forcing Gommo */}
-                    {renderModelList()}
+                    {renderModelConfigCard()}
                     
-                    {renderSizeConfig()}
                     {renderReferenceImageSection()}
                     
                     {/* Hide Quality Section in Hack Concept Pro */}
