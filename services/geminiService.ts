@@ -54,7 +54,6 @@ async function withKeyRotation<T>(
         } catch (error: any) {
             lastError = error;
             const msg = (error.message || error.toString()).toLowerCase();
-            console.warn(`Key ...${apiKey.slice(-4)} failed: ${msg}`);
             
             // Chỉ retry nếu lỗi liên quan đến Quota (429) hoặc Server quá tải (503)
             const isQuotaError = msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted');
@@ -64,7 +63,6 @@ async function withKeyRotation<T>(
                 console.warn(`Key ...${apiKey.slice(-4)} bị lỗi. Đang chuyển sang key tiếp theo...`);
                 continue;
             } else {
-                // Break on other errors (like 400 Bad Request, 403 Permission Denied) to avoid useless retries
                 break; 
             }
         }
@@ -79,15 +77,11 @@ const handleGeminiError = (error: any, modelName: string = '') => {
     const msg = (error.message || error.toString()).toLowerCase();
     
     if (msg.includes('permission denied') || msg.includes('403')) {
-        return new Error("Lỗi Quyền (403): API Key bị từ chối hoặc không có quyền truy cập model này.");
+        return new Error("Lỗi Quyền (403): API Key bị từ chối.");
     }
     
     if (msg.includes('429') || msg.includes('quota')) {
         return new Error("Lỗi Quota (429): Key hết lượt dùng. Vui lòng thử lại sau.");
-    }
-
-    if (msg.includes('404') || msg.includes('not found')) {
-        return new Error(`Lỗi Model (404): Model '${modelName}' không khả dụng (Google chưa hỗ trợ tại khu vực này hoặc sai tên).`);
     }
 
     if (msg.includes('400')) {
@@ -105,21 +99,20 @@ export const validateApiKey = async (apiKey: string): Promise<{ valid: boolean; 
     try {
         const ai = new GoogleGenAI({ apiKey: keys[0] });
         await ai.models.generateContent({
-            model: 'gemini-2.0-flash-exp', // Updated to 2.0 Flash Exp for better Vision support
+            model: 'gemini-2.5-flash-latest',
             contents: { parts: [{ text: 'ping' }] },
             config: { maxOutputTokens: 1 }
         });
         return { valid: true };
     } catch (error: any) {
-        const err = handleGeminiError(error, 'gemini-2.0-flash-exp');
-        return { valid: false, message: err.message };
+        return { valid: false, message: "Key không hoạt động." };
     }
 };
 
 // --- IMAGE HELPERS ---
 
-// UPDATED: Forced JPEG compression to avoid 524 Timeouts
-export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quality = 0.6): Promise<string> => {
+// UPDATED: Default quality reduced to 0.5 to prevent Cloudflare 524 Timeout
+export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quality = 0.5): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -142,14 +135,15 @@ export const resizeImage = (file: File, maxWidth = 1024, maxHeight = 1024, quali
             reject(new Error("Could not get canvas context"));
             return;
         }
-        // Fill white background for JPEG conversion (incase of transparent PNG)
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-        
         ctx.drawImage(img, 0, 0, width, height);
         
-        // FORCE JPEG for maximum compression to avoid Cloudflare 524
-        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        let mimeType = file.type;
+        if (mimeType !== 'image/png' && mimeType !== 'image/webp') {
+            mimeType = 'image/jpeg';
+        }
+
+        // Apply quality compression here
+        const dataUrl = canvas.toDataURL(mimeType, quality);
         resolve(dataUrl.split(',')[1]);
       };
       img.onerror = (err) => reject(err);
@@ -177,6 +171,9 @@ export const generateStyledImage = async (
   originalFile: File,
   settings: GenerationSettings
 ): Promise<string> => {
+    // Nếu người dùng lỡ gọi hàm này (do config cũ), ta sẽ throw lỗi hướng dẫn chuyển sang Gommo
+    // Hoặc vẫn để nó chạy như fallback. 
+    // Theo yêu cầu "không gọi gg api khi tạo ảnh", ta sẽ return lỗi nếu bị gọi.
     throw new Error("Chế độ tạo ảnh bằng Google API đang tắt. Vui lòng sử dụng Aivideoauto (Gommo).");
 };
 
@@ -185,8 +182,8 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
     return withKeyRotation(apiKey, async (ai) => {
         // Resize ảnh để phân tích nhanh hơn
         const base64Data = await resizeImage(file, 1024, 1024, 0.5);
-        // Analysis accepts JPEG from resizeImage
-        const mimeType = 'image/jpeg';
+        let mimeType = file.type;
+        if (mimeType !== 'image/png' && mimeType !== 'image/webp') mimeType = 'image/jpeg';
 
         let prompt = "";
         
@@ -205,7 +202,7 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         }
 
         const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash-exp', // Updated to 2.0 Flash Exp for better Vision support
+          model: 'gemini-2.5-flash-latest',
           contents: { 
             parts: [
               { inlineData: { mimeType, data: base64Data } }, 
@@ -215,5 +212,5 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         });
 
         return response.text?.trim() || "";
-    }, 'gemini-2.0-flash-exp');
+    });
 };
