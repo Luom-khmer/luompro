@@ -240,8 +240,8 @@ export const analyzeHackConceptImage = async (file: File, apiKey?: string): Prom
         {
           "detailed": "Mô tả chi tiết tổng thể về bối cảnh, ánh sáng, không khí, vật liệu và các mã màu Hex. Viết bằng tiếng Việt.",
           "fullBody": "Mô tả bối cảnh góc rộng, bao gồm cả sàn nhà/mặt đất, không gian xung quanh và các mã màu Hex. Viết bằng tiếng Việt.",
-          "portrait": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ'. Sau đó mô tả chi tiết hậu cảnh mờ (bokeh), ánh sáng và các mã màu Hex.",
-          "closeUp": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 135mm F 2.8 xóa phông'. Sau đó mô tả chi tiết hậu cảnh xóa phông mạnh, chi tiết ánh sáng cận và các mã màu Hex."
+          "portrait": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ'. Sau đó mô tả chi tiết hậu cảnh mờ (bokeh), ánh sáng và các mã màu Hex.",
+          "closeUp": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'phía sau chủ thể – Camera 135mm F 2.8 xóa phông'. Sau đó mô tả chi tiết hậu cảnh xóa phông mạnh, chi tiết ánh sáng cận và các mã màu Hex."
         }
         `;
 
@@ -265,8 +265,8 @@ export const analyzeHackConceptImage = async (file: File, apiKey?: string): Prom
             return {
                 detailed: json.detailed || "Không thể phân tích.",
                 fullBody: json.fullBody || "Không thể phân tích.",
-                portrait: json.portrait || "Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ...",
-                closeUp: json.closeUp || "Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 135mm F 2.8 xóa phông..."
+                portrait: json.portrait || "phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ...",
+                closeUp: json.closeUp || "phía sau chủ thể – Camera 135mm F 2.8 xóa phông..."
             };
         } catch (e) {
             console.error("JSON parse failed", e);
