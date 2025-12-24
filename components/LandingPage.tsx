@@ -26,14 +26,6 @@ const TOOLS = [
     mode: 'concept'
   },
   {
-    id: 'fake-concept',
-    title: 'FAKE CONCEPT',
-    description: 'Ghép ảnh, ánh sáng & style',
-    icon: SparklesIcon,
-    color: 'blue', 
-    mode: 'concept'
-  },
-  {
     id: 'hack-concept-pro', // NEW ITEM
     title: 'HACK CONCEPT PRO',
     description: 'Hack nền, ánh sáng & góc máy',
@@ -43,33 +35,17 @@ const TOOLS = [
     mode: 'hack-concept'
   },
   {
-    id: 'painting',
-    title: 'TRANH VẼ AI',
-    description: 'Chuyển ảnh thành tranh vẽ',
-    icon: PaintBrushIcon,
-    color: 'pink',
-    mode: 'concept'
-  },
-  {
     id: 'restoration',
     title: 'PHỤC CHẾ ẢNH',
     description: 'Khôi phục màu & chi tiết',
     icon: ClockIcon,
     color: 'green',
     mode: 'concept'
-  },
-  {
-    id: 'voice',
-    title: 'GIỌNG ĐỌC AI',
-    description: 'Chuyển đổi văn bản thành giọng nói',
-    icon: SpeakerWaveIcon,
-    color: 'red',
-    mode: 'voice' 
   }
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
-  const [activeIndex, setActiveIndex] = useState(2); // Mặc định chọn Hack Concept Pro (index 2)
+  const [activeIndex, setActiveIndex] = useState(1); // Mặc định chọn Hack Concept Pro (index 1)
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % TOOLS.length);
