@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
-import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon } from '@heroicons/react/24/outline';
-import { analyzeReferenceImage, validateApiKey } from '../services/geminiService';
+import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon } from '@heroicons/react/24/outline';
+import { analyzeReferenceImage, analyzeHackConceptImage, validateApiKey } from '../services/geminiService';
 import { fetchGommoModels } from '../services/gommoService';
 import { APP_CONFIG } from '../config';
 
@@ -36,6 +36,7 @@ const DEFAULT_RESET_VALUES = {
     minimalCustomization: false,
     enableUpscale: false,
     restorationCustomPrompt: '',
+    hackPrompts: undefined // Reset hack prompts
 };
 
 // Cấu hình tự động khi phân tích xong
@@ -145,6 +146,10 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   const [isLoadingGommoModels, setIsLoadingGommoModels] = useState(false);
   const [gommoConnected, setGommoConnected] = useState(false);
   const [gommoError, setGommoError] = useState<string | null>(null);
+
+  // --- HACK CONCEPT PRO SPECIFIC STATES ---
+  const [hackModalStep, setHackModalStep] = useState<'intro' | 'analyzing' | 'selection' | 'off'>('off');
+  const [activeHackTab, setActiveHackTab] = useState<'fullBody' | 'portrait' | 'closeUp'>('fullBody');
 
   // --- TOP LEVEL HOOKS FOR MODEL & RATIO LOGIC ---
   const isGommoProvider = true; // FORCE GOMMO ALWAYS FOR UI
@@ -386,18 +391,64 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       if (!file) return;
 
       if (viewMode === 'hack-concept') {
-          const previewUrl = URL.createObjectURL(file);
-          onSettingsChange({ 
-              referenceImage: file, 
-              referenceImagePreview: previewUrl 
-          });
-          e.target.value = '';
-          return;
+          // --- HACK CONCEPT PRO LOGIC ---
+          setPendingReferenceFile(file);
+          setHackModalStep('intro'); // Start Hack Flow
+      } else {
+          setPendingReferenceFile(file);
+          setShowAnalysisModal(true);
       }
-
-      setPendingReferenceFile(file);
-      setShowAnalysisModal(true);
       e.target.value = '';
+  };
+
+  // --- HACK CONCEPT PRO FUNCTIONS ---
+  const performHackAnalysis = async () => {
+      if (!pendingReferenceFile) return;
+      setHackModalStep('analyzing');
+      try {
+          const results = await analyzeHackConceptImage(pendingReferenceFile, settings.apiKey);
+          onSettingsChange({
+              hackPrompts: results,
+              userPrompt: results.detailed // Default to detailed
+          });
+          setHackModalStep('selection');
+      } catch (e: any) {
+          alert("Lỗi phân tích Hack Concept: " + e.message);
+          setHackModalStep('off');
+          setPendingReferenceFile(null);
+      }
+  };
+
+  const handleHackOptionSelect = (option: 1 | 2) => {
+      if (option === 1) {
+          // Option 1: Just Prompt (Clear image)
+          onSettingsChange({ 
+              referenceImage: null, 
+              referenceImagePreview: null 
+          });
+      } else {
+          // Option 2: Keep Image
+          const previewUrl = URL.createObjectURL(pendingReferenceFile!);
+          onSettingsChange({
+              referenceImage: pendingReferenceFile,
+              referenceImagePreview: previewUrl
+          });
+      }
+      setPendingReferenceFile(null);
+      setHackModalStep('off');
+      setActiveHackTab('fullBody');
+      // Set initial prompts (Detailed is already in userPrompt from analysis step)
+      // Also apply the Full Body to the tab state logic if needed, but we keep detailed in main
+  };
+
+  const handleHackTabSwitch = (tab: 'fullBody' | 'portrait' | 'closeUp') => {
+      if (!settings.hackPrompts) return;
+      setActiveHackTab(tab);
+      let text = "";
+      if (tab === 'fullBody') text = settings.hackPrompts.fullBody;
+      if (tab === 'portrait') text = settings.hackPrompts.portrait;
+      if (tab === 'closeUp') text = settings.hackPrompts.closeUp;
+      onSettingsChange({ userPrompt: text });
   };
 
   const clearReferenceImage = () => {
@@ -443,8 +494,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       </div>
   );
 
-  // REMOVED SERVICE SELECTION TO FORCE GOMMO USAGE
-  
   const renderKeysTabContent = () => (
       <div className="space-y-6 animate-fade-in">
            {/* Section 1: Google Gemini Key - STILL NEEDED FOR ANALYSIS */}
@@ -631,12 +680,13 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
                   ) : (
                       <label className={`flex flex-col items-center justify-center w-full h-28 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200 relative overflow-hidden ${isAnalyzing ? 'bg-gray-800 border-sky-500/50' : isDraggingRef ? 'bg-gray-800 border-sky-400 scale-[1.02]' : 'bg-[#222] border-gray-600 hover:bg-gray-800 hover:border-gray-500'}`} onDragOver={(e) => { e.preventDefault(); setIsDraggingRef(true); }} onDragLeave={(e) => { e.preventDefault(); setIsDraggingRef(false); }} onDrop={(e) => { e.preventDefault(); setIsDraggingRef(false); const f = e.dataTransfer.files?.[0]; if(f) { 
-                          // Inline drop logic matching handleRefUpload
-                          if(viewMode === 'hack-concept') {
-                              const previewUrl = URL.createObjectURL(f);
-                              onSettingsChange({ referenceImage: f, referenceImagePreview: previewUrl });
+                          if (viewMode === 'hack-concept') {
+                              // Handle Drop for Hack Concept
+                              setPendingReferenceFile(f);
+                              setHackModalStep('intro');
                           } else {
-                              setPendingReferenceFile(f); setShowAnalysisModal(true); 
+                              setPendingReferenceFile(f); 
+                              setShowAnalysisModal(true); 
                           }
                       }}}>
                           {isAnalyzing ? (
@@ -657,7 +707,32 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
 
   const renderPromptSection = () => (
     <div className="border border-gray-700 rounded-lg p-5 bg-[#1a1a1a]">
-        <div className="relative flex justify-center items-center mb-3"><h3 className="font-semibold text-gray-200 text-lg">Mô tả Concept</h3></div>
+        
+        {/* NEW TAB SWITCHER FOR HACK CONCEPT PRO */}
+        {viewMode === 'hack-concept' && settings.hackPrompts && (
+            <div className="flex gap-2 mb-3 bg-[#111] p-1 rounded-lg border border-gray-800">
+                <button 
+                    onClick={() => handleHackTabSwitch('fullBody')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded uppercase transition-all ${activeHackTab === 'fullBody' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Toàn thân
+                </button>
+                <button 
+                    onClick={() => handleHackTabSwitch('portrait')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded uppercase transition-all ${activeHackTab === 'portrait' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Chân dung
+                </button>
+                <button 
+                    onClick={() => handleHackTabSwitch('closeUp')}
+                    className={`flex-1 py-1.5 text-xs font-bold rounded uppercase transition-all ${activeHackTab === 'closeUp' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
+                >
+                    Cận cảnh
+                </button>
+            </div>
+        )}
+
+        <div className="relative flex justify-center items-center mb-3"><h3 className="font-semibold text-gray-200 text-lg">Mô tả prompt</h3></div>
         <div className="relative">
             <textarea value={settings.userPrompt} onChange={(e) => onSettingsChange({ userPrompt: e.target.value })} placeholder={settings.referenceImage ? "Mô tả bổ sung..." : "Mô tả chi tiết bối cảnh..."} className="w-full bg-[#333] border border-gray-600 rounded px-3 py-2 text-gray-200 text-lg focus:outline-none focus:border-sky-500 min-h-[140px] resize-y pr-14 leading-relaxed"/>
             <div className="absolute right-2 top-2 flex gap-1 text-gray-400">
@@ -802,6 +877,85 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
     </div>
   );
 
+  // --- NEW HACK CONCEPT PRO MODAL ---
+  const renderHackConceptModal = () => {
+    if (hackModalStep === 'off') return null;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md p-4">
+             <div className="bg-[#1e1e1e] border border-purple-500/50 rounded-2xl shadow-[0_0_50px_rgba(168,85,247,0.3)] max-w-lg w-full overflow-hidden animate-fade-in relative">
+                 
+                 {/* Close Button */}
+                 <button onClick={() => { setHackModalStep('off'); setPendingReferenceFile(null); }} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                     <XCircleIcon className="w-6 h-6" />
+                 </button>
+
+                 {/* Step 1: Intro/Confirm */}
+                 {hackModalStep === 'intro' && (
+                     <div className="p-8 text-center flex flex-col items-center">
+                         <div className="w-16 h-16 rounded-full bg-purple-900/30 flex items-center justify-center mb-6 ring-2 ring-purple-500/50 animate-pulse">
+                             <BoltIcon className="w-8 h-8 text-purple-400" />
+                         </div>
+                         <h2 className="text-xl font-bold text-white mb-2">Tôi đã nhận thấy ảnh tham chiếu.</h2>
+                         <p className="text-gray-300 mb-8">
+                             Bạn có muốn tôi phân tích bối cảnh và màu sắc cho ảnh này không?
+                         </p>
+                         <button 
+                             onClick={performHackAnalysis}
+                             className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-all shadow-lg hover:shadow-purple-500/30 flex items-center justify-center gap-2"
+                         >
+                             <SparklesIcon className="w-5 h-5" /> Phân tích ngay
+                         </button>
+                     </div>
+                 )}
+
+                 {/* Step 2: Analyzing */}
+                 {hackModalStep === 'analyzing' && (
+                     <div className="p-12 text-center flex flex-col items-center">
+                         <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+                         <h3 className="text-lg font-bold text-white">Đang phân tích bối cảnh...</h3>
+                         <p className="text-gray-400 text-sm mt-2">Đang trích xuất mã màu & style</p>
+                     </div>
+                 )}
+
+                 {/* Step 3: Selection */}
+                 {hackModalStep === 'selection' && (
+                     <div className="p-8">
+                         <h3 className="text-lg font-bold text-white mb-6 text-center border-b border-gray-800 pb-4">Kết quả đã sẵn sàng! Chọn chế độ:</h3>
+                         <div className="grid gap-4">
+                             <button 
+                                 onClick={() => handleHackOptionSelect(1)}
+                                 className="group text-left p-4 rounded-xl border border-gray-700 bg-[#252525] hover:bg-purple-900/20 hover:border-purple-500 transition-all"
+                             >
+                                 <div className="flex justify-between items-center mb-1">
+                                     <span className="font-bold text-white group-hover:text-purple-300">Chỉ dùng Prompt (Khuyên dùng)</span>
+                                     <CheckCircleIcon className="w-5 h-5 text-gray-600 group-hover:text-purple-500" />
+                                 </div>
+                                 <p className="text-xs text-gray-400 flex items-center gap-1">
+                                     <LightBulbIcon className="w-3 h-3 text-yellow-500" /> AI sẽ tự do sáng tạo bối cảnh tốt nhất từ mô tả.
+                                 </p>
+                             </button>
+
+                             <button 
+                                 onClick={() => handleHackOptionSelect(2)}
+                                 className="group text-left p-4 rounded-xl border border-gray-700 bg-[#252525] hover:bg-blue-900/20 hover:border-blue-500 transition-all"
+                             >
+                                 <div className="flex justify-between items-center mb-1">
+                                     <span className="font-bold text-white group-hover:text-blue-300">Dùng Prompt + Ảnh tham chiếu</span>
+                                     <PhotoIcon className="w-5 h-5 text-gray-600 group-hover:text-blue-500" />
+                                 </div>
+                                 <p className="text-xs text-gray-400 flex items-center gap-1">
+                                     <ExclamationCircleIcon className="w-3 h-3 text-orange-500" /> Lưu ý: Chỉ đẹp nếu ảnh gốc và ảnh mẫu cùng hướng sáng.
+                                 </p>
+                             </button>
+                         </div>
+                     </div>
+                 )}
+             </div>
+        </div>
+    );
+  };
+
   // Analysis Modal rendered as function call (inline) to avoid remounting
   const renderAnalysisModal = () => {
     if (!showAnalysisModal) return null;
@@ -812,22 +966,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><DocumentMagnifyingGlassIcon className="w-6 h-6 text-sky-500" /> Chọn chế độ phân tích</h3>
                 </div>
                 <div className="p-6 grid gap-4">
-                    {/* HACK CONCEPT PRO MODE: Prioritize Background Analysis */}
-                    {viewMode === 'hack-concept' ? (
-                        <>
-                            <button onClick={() => handleAnalysisSelection('background')} className="flex flex-col gap-1 p-4 rounded-lg bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500 hover:border-emerald-400 transition-all text-left group shadow-lg ring-1 ring-emerald-500/30">
-                                <span className="text-emerald-100 font-bold text-lg flex items-center justify-between uppercase">
-                                    Hack Bối Cảnh Pro
-                                    <BoltIcon className="w-6 h-6 text-emerald-400 group-hover:scale-110 transition-transform" />
-                                </span>
-                                <span className="text-xs text-emerald-300/80 mt-1 font-medium">Lấy toàn bộ bối cảnh, ánh sáng, góc máy từ ảnh mẫu (Bỏ qua nhân vật)</span>
-                            </button>
-
-                            <div className="h-px bg-gray-700 my-2"></div>
-                            <span className="text-xs text-gray-500 font-bold uppercase tracking-wider text-center block">Tùy chọn khác</span>
-                        </>
-                    ) : null}
-
+                    {/* HACK CONCEPT PRO MODE is handled by separate modal now, keeping UI logic clean */}
+                    
                     <button onClick={() => handleAnalysisSelection('basic')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-sky-500 transition-all text-left group">
                         <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Cơ bản<SparklesIcon className="w-5 h-5 text-gray-500 group-hover:text-sky-400" /></span>
                     </button>
@@ -855,6 +995,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   return (
     <>
         {renderAnalysisModal()}
+        {renderHackConceptModal()}
 
         <div className="h-full bg-[#111] border-l border-gray-800 p-4 flex flex-col gap-4 overflow-y-auto text-lg custom-scrollbar">
             <div className="flex items-center justify-center py-4 border-b border-gray-800 mb-2">

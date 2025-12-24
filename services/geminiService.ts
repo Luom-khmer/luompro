@@ -221,3 +221,56 @@ export const analyzeReferenceImage = async (file: File, mode: 'basic' | 'deep' |
         return response.text?.trim() || "";
     }, 'gemini-2.5-flash');
 };
+
+// --- HACK CONCEPT PRO ANALYSIS SERVICE ---
+export const analyzeHackConceptImage = async (file: File, apiKey?: string): Promise<{detailed: string, fullBody: string, portrait: string, closeUp: string}> => {
+    return withKeyRotation(apiKey, async (ai) => {
+        const base64Data = await resizeImage(file, 1024, 1024, 0.5);
+        let mimeType = file.type;
+        if (mimeType !== 'image/png' && mimeType !== 'image/webp') mimeType = 'image/jpeg';
+
+        const prompt = `
+        Bạn là chuyên gia về nhiếp ảnh và ánh sáng. Hãy phân tích bức ảnh này.
+        
+        QUY TẮC BẮT BUỘC:
+        1. TUYỆT ĐỐI KHÔNG mô tả về con người (nhân vật). Chỉ tập trung vào bối cảnh, hậu cảnh, ánh sáng, màu sắc, vật liệu và không gian.
+        2. TRÍCH XUẤT MÃ MÀU: Tìm 3-5 mã màu Hex (#XXXXXX) chủ đạo của bối cảnh/ánh sáng và CHÈN CHÚNG vào tất cả các đoạn mô tả bên dưới.
+        
+        HÃY TRẢ VỀ KẾT QUẢ DƯỚI DẠNG JSON với cấu trúc sau:
+        {
+          "detailed": "Mô tả chi tiết tổng thể về bối cảnh, ánh sáng, không khí, vật liệu và các mã màu Hex. Viết bằng tiếng Việt.",
+          "fullBody": "Mô tả bối cảnh góc rộng, bao gồm cả sàn nhà/mặt đất, không gian xung quanh và các mã màu Hex. Viết bằng tiếng Việt.",
+          "portrait": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ'. Sau đó mô tả chi tiết hậu cảnh mờ (bokeh), ánh sáng và các mã màu Hex.",
+          "closeUp": "BẮT BUỘC BẮT ĐẦU CHÍNH XÁC BẰNG CỤM TỪ: 'Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 135mm F 2.8 xóa phông'. Sau đó mô tả chi tiết hậu cảnh xóa phông mạnh, chi tiết ánh sáng cận và các mã màu Hex."
+        }
+        `;
+
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: { 
+            parts: [
+              { inlineData: { mimeType, data: base64Data } }, 
+              { text: prompt } 
+            ] 
+          },
+          config: {
+              responseMimeType: "application/json"
+          }
+        });
+
+        const text = response.text || "{}";
+        try {
+            const json = JSON.parse(text);
+            // Validate and fallback
+            return {
+                detailed: json.detailed || "Không thể phân tích.",
+                fullBody: json.fullBody || "Không thể phân tích.",
+                portrait: json.portrait || "Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 85mm F 2.8 xóa phông nhẹ...",
+                closeUp: json.closeUp || "Mô tả hậu cảnh trong khung hình bản thân chụp cận phía sau chủ thể – Camera 135mm F 2.8 xóa phông..."
+            };
+        } catch (e) {
+            console.error("JSON parse failed", e);
+            throw new Error("Lỗi định dạng phản hồi từ AI.");
+        }
+    }, 'gemini-2.5-flash');
+};

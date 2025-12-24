@@ -61,6 +61,14 @@ export interface GenerationSettings {
     aiProvider: 'gemini' | 'gommo';
     gommoApiKey?: string;
     gommoModel?: string;
+
+    // --- Hack Concept Pro Specific ---
+    hackPrompts?: {
+        detailed: string;
+        fullBody: string;
+        portrait: string;
+        closeUp: string;
+    };
 }
 
 export interface ProfileSettings {
