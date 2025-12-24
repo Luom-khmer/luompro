@@ -1,5 +1,4 @@
 
-
 export interface VoiceOption {
   id: string;
   name: string;
@@ -62,7 +61,6 @@ export interface GenerationSettings {
     aiProvider: 'gemini' | 'gommo';
     gommoApiKey?: string;
     gommoModel?: string;
-    gommoMode?: string; // e.g. 'vip', 'fast', 'relaxed', 'cheap', 'reason'
 
     // --- Hack Concept Pro Specific ---
     hackPrompts?: {
@@ -149,12 +147,6 @@ export interface GommoMode {
   description: string;
 }
 
-export interface GommoPrice {
-  mode: string;
-  resolution: string;
-  price: number;
-}
-
 export interface GommoModel {
   id_base?: string; // Made optional as API JSON doesn't always return it
   name: string;
@@ -167,7 +159,6 @@ export interface GommoModel {
   ratios?: GommoRatio[];
   resolutions?: GommoResolution[];
   modes?: GommoMode[];
-  prices?: GommoPrice[]; // Added specific pricing array
 }
 
 export interface GommoModelResponse {

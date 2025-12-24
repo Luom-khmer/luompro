@@ -1,5 +1,4 @@
 
-
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -51,8 +50,7 @@ const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
     // ENFORCE GOMMO AS DEFAULT
     aiProvider: 'gommo',
     gommoModel: 'google_image_gen_banana_pro', 
-    gommoApiKey: '',
-    gommoMode: undefined
+    gommoApiKey: ''
 };
 
 const App: React.FC = () => {
@@ -248,31 +246,8 @@ const App: React.FC = () => {
       if (provider === 'gommo') {
           const modelId = activeSettings.gommoModel || 'google_image_gen_banana_pro';
           const modelInfo = gommoModelsCache.find(m => m.model === modelId);
-          
-          if (modelInfo) {
-               // Calculate Cost based on Mode and Resolution if available in prices array
-               const selectedMode = activeSettings.gommoMode;
-               const selectedRes = (activeSettings.imageSize || '1k').toLowerCase();
-               
-               let specificPrice = null;
-               
-               if (modelInfo.prices && Array.isArray(modelInfo.prices)) {
-                   const found = modelInfo.prices.find(p => {
-                       const modeMatch = selectedMode ? p.mode === selectedMode : true;
-                       // Handle resolution matching (fuzzy)
-                       const resMatch = p.resolution.toLowerCase() === selectedRes;
-                       return modeMatch && resMatch;
-                   });
-                   if (found) specificPrice = found.price;
-               }
-
-               if (specificPrice !== null) {
-                   estimatedCost = specificPrice;
-               } else if (typeof modelInfo.price === 'number') {
-                   estimatedCost = modelInfo.price;
-               } else {
-                   estimatedCost = 4;
-               }
+          if (modelInfo && typeof modelInfo.price === 'number') {
+              estimatedCost = modelInfo.price;
           } else {
               estimatedCost = 4;
           }
@@ -348,8 +323,7 @@ const App: React.FC = () => {
                     ratio: gommoRatio,
                     resolution: gommoResolution,
                     project_id: projectId,
-                    subjects: subjectsPayload,
-                    mode: finalSettings.gommoMode // Pass mode
+                    subjects: subjectsPayload
                  }
              );
 

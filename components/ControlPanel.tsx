@@ -1,8 +1,7 @@
 
-
 import React, { useState, useEffect } from 'react';
-import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution, GommoMode } from '../types';
-import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon, RocketLaunchIcon } from '@heroicons/react/24/outline';
+import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
+import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon } from '@heroicons/react/24/outline';
 import { analyzeReferenceImage, analyzeHackConceptImage, validateApiKey } from '../services/geminiService';
 import { fetchGommoModels } from '../services/gommoService';
 import { APP_CONFIG } from '../config';
@@ -166,41 +165,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
       }
       return ASPECT_RATIO_OPTIONS;
   }, [activeGommoModel]);
-
-  const availableModes = React.useMemo(() => {
-      return (activeGommoModel && activeGommoModel.modes) ? activeGommoModel.modes : [];
-  }, [activeGommoModel]);
-
-  // Set default mode when model changes
-  useEffect(() => {
-      if (availableModes.length > 0) {
-          // If current mode is not valid for this model, select first one
-          const currentValid = availableModes.find(m => m.type === settings.gommoMode);
-          if (!currentValid) {
-               onSettingsChange({ gommoMode: availableModes[0].type });
-          }
-      } else {
-          // If no modes, clear setting
-          if (settings.gommoMode) onSettingsChange({ gommoMode: undefined });
-      }
-  }, [activeGommoModel, availableModes]);
-
-  // Helper to estimate price
-  const getEstimatedPrice = (mode?: string, resolution?: string) => {
-      if (!activeGommoModel) return null;
-      if (!activeGommoModel.prices) return activeGommoModel.price;
-
-      const targetMode = mode || settings.gommoMode;
-      const targetRes = (resolution || settings.imageSize || '1k').toLowerCase();
-
-      const found = activeGommoModel.prices.find(p => {
-           const modeMatch = targetMode ? p.mode === targetMode : true;
-           const resMatch = p.resolution.toLowerCase() === targetRes;
-           return modeMatch && resMatch;
-      });
-
-      return found ? found.price : activeGommoModel.price;
-  };
 
   // Validate Aspect Ratio Effect
   useEffect(() => {
@@ -624,70 +588,14 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   </div>
               ) : (
                   <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
-                      {gommoModelsList.map((m) => {
-                          // Display range if pricing varies by mode
-                          let priceDisplay = `${m.price} credits`;
-                          if (m.prices && m.prices.length > 0) {
-                              const min = Math.min(...m.prices.map(p => p.price));
-                              const max = Math.max(...m.prices.map(p => p.price));
-                              if (min !== max) {
-                                  priceDisplay = `${min} - ${max} credits`;
-                              } else {
-                                  priceDisplay = `${min} credits`;
-                              }
-                          }
-
-                          return (
-                              <button key={m.model} onClick={() => onSettingsChange({ gommoModel: m.model })} className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center text-center gap-1 h-full min-h-[50px] ${settings.gommoModel === m.model ? 'bg-teal-600 border-teal-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`} title={`${m.name}\n${m.description || ''}`}>
-                                  <span className="line-clamp-2">{m.name}</span>
-                                  <span className="text-[10px] opacity-70 font-normal bg-black/30 px-1 rounded">{priceDisplay}</span>
-                              </button>
-                          );
-                      })}
+                      {gommoModelsList.map((m) => (
+                          <button key={m.model} onClick={() => onSettingsChange({ gommoModel: m.model })} className={`py-2 px-2 rounded-lg text-xs font-bold transition-all border flex flex-col items-center justify-center text-center gap-1 h-full min-h-[50px] ${settings.gommoModel === m.model ? 'bg-teal-600 border-teal-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-200'}`} title={`${m.name}\n${m.description || ''}`}>
+                              <span className="line-clamp-2">{m.name}</span>
+                              {m.price !== undefined && <span className="text-[10px] opacity-70 font-normal bg-black/30 px-1 rounded">{m.price} credits</span>}
+                          </button>
+                      ))}
                   </div>
               )}
-          </div>
-      );
-  };
-
-  const renderModeSelector = () => {
-      if (availableModes.length === 0) return null;
-
-      return (
-          <div className="border border-indigo-500/30 rounded-lg bg-[#1a1a1a] mb-4 overflow-hidden">
-               <div className="p-3 border-b border-gray-800 bg-black/20 flex justify-between items-center">
-                    <h3 className="font-bold text-indigo-400 text-xs uppercase tracking-wide flex items-center gap-2">
-                        <RocketLaunchIcon className="w-4 h-4" /> Chế độ xử lý
-                    </h3>
-               </div>
-               <div className="p-3">
-                   <div className="grid grid-cols-3 gap-2">
-                       {availableModes.map((mode) => {
-                           const isSelected = settings.gommoMode === mode.type;
-                           // Estimate price for this mode at current resolution
-                           const estimated = getEstimatedPrice(mode.type);
-
-                           return (
-                               <button 
-                                  key={mode.type}
-                                  onClick={() => onSettingsChange({ gommoMode: mode.type })}
-                                  className={`py-2 px-1 rounded border transition-all flex flex-col items-center justify-center gap-1 ${isSelected ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' : 'bg-[#222] border-gray-700 text-gray-400 hover:bg-gray-800'}`}
-                                  title={mode.description}
-                               >
-                                   <span className="text-xs font-bold uppercase">{mode.name}</span>
-                                   {estimated !== null && (
-                                       <span className={`text-[10px] px-1.5 rounded-full ${isSelected ? 'bg-black/30 text-white' : 'bg-black/50 text-gray-500'}`}>
-                                           {estimated} cr
-                                       </span>
-                                   )}
-                               </button>
-                           );
-                       })}
-                   </div>
-                   <p className="text-[10px] text-gray-500 mt-2 italic text-center">
-                       * Giá credits thay đổi tùy theo chế độ và độ phân giải.
-                   </p>
-               </div>
           </div>
       );
   };
@@ -718,16 +626,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <div className="flex flex-col gap-2">
                     <label className="text-xs text-gray-500 block font-medium">Độ phân giải</label>
                     <div className="flex bg-black/40 rounded-lg p-1 border border-gray-700 flex-wrap gap-1">
-                        {resolutions.map((res) => {
-                             // Estimate price for this resolution at current mode
-                             const est = getEstimatedPrice(undefined, res.type);
-                             return (
-                                <button key={res.type} onClick={() => onSettingsChange({ imageSize: res.type })} className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all min-w-[50px] flex flex-col items-center ${settings.imageSize === res.type ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                                    <span>{res.name}</span>
-                                    {est !== null && settings.imageSize !== res.type && <span className="text-[8px] opacity-60 font-normal">{est} cr</span>}
-                                </button>
-                             );
-                        })}
+                        {resolutions.map((res) => (
+                            <button key={res.type} onClick={() => onSettingsChange({ imageSize: res.type })} className={`flex-1 py-1.5 px-2 rounded-md text-xs font-bold transition-all min-w-[50px] ${settings.imageSize === res.type ? 'bg-purple-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>{res.name}</button>
+                        ))}
                     </div>
                 </div>
             )}
@@ -1116,7 +1017,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                 <>
                     {/* renderServiceSelection removed - forcing Gommo */}
                     {renderModelList()}
-                    {renderModeSelector()} {/* NEW: Mode Selector */}
+                    
                     {renderSizeConfig()}
                     {renderReferenceImageSection()}
                     
