@@ -202,9 +202,9 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           if (matchedPrice) unitPrice = matchedPrice.price;
       }
       
-      const qty = settings.quantity || 1;
-      return unitPrice * qty;
-  }, [activeGommoModel, settings.gommoMode, settings.gommoResolution, settings.quantity]);
+      // Quantity is visually removed but logically 1
+      return unitPrice;
+  }, [activeGommoModel, settings.gommoMode, settings.gommoResolution]);
 
   // Validate Aspect Ratio Effect
   useEffect(() => {
@@ -703,7 +703,7 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   )}
               </div>
 
-              {/* Configuration Grid - CHANGED TO 3 COLS */}
+              {/* Configuration Grid - CHANGED TO 3 COLS AND REMOVED QTY */}
               <div className="grid grid-cols-3 gap-3 mb-5">
                   {/* RATIO */}
                   <div>
@@ -759,8 +759,6 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                           <ChevronDownIcon className="w-3 h-3 text-gray-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                       </div>
                   </div>
-
-                  {/* QTY REMOVED */}
               </div>
 
               {/* Price Calculation Footer */}

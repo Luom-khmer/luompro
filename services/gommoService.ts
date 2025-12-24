@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { APP_CONFIG } from '../config';
 
-const DOMAIN = "aivideoauto.com";
+// const DOMAIN = "aivideoauto.com"; // Removed in favor of ID
 
 // Logic chọn Base URL:
 // 1. Ưu tiên Cloudflare Worker (GOMMO_PROXY_URL) nếu có -> Bypass CORS & Timeout.
@@ -34,14 +34,15 @@ const ENDPOINTS = {
 };
 
 // Helper to create body matching the requirement: 
-// { access_token, domain: "aivideoauto.com", ... }
+// { access_token, id: "cd21047adf4f6f4e", ... }
 // Uses URLSearchParams which automatically sets Content-Type to application/x-www-form-urlencoded
 const createBody = (accessToken: string, params: Record<string, any>) => {
     const paramsObj = new URLSearchParams();
     
     // Required fields - Token in body to avoid CORS Preflight issues with custom headers
     paramsObj.append('access_token', accessToken);
-    paramsObj.append('domain', DOMAIN);
+    // Replace domain with specific ID for hiding domain
+    paramsObj.append('id', 'cd21047adf4f6f4e');
     
     Object.keys(params).forEach(key => {
         const value = params[key];
