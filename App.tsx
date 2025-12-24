@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -505,6 +506,11 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-[#0f1012] text-gray-200 font-sans overflow-hidden">
         <header className="flex-none flex items-center justify-between px-6 py-4 border-b border-gray-800 bg-[#141414] relative z-50">
              <div className="w-1/3 flex items-center justify-start gap-3">
+                 <a href="https://www.facebook.com/luom68g1" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center w-9 h-9 rounded-full bg-[#1877F2]/10 hover:bg-[#1877F2]/20 border border-[#1877F2]/30 text-[#1877F2] transition-all hover:scale-105" title="Facebook Fanpage">
+                    <svg fill="currentColor" viewBox="0 0 24 24" className="w-5 h-5">
+                        <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036c-2.048 0-2.606.492-2.606 1.691v1.861h3.888l-.536 3.669h-3.352v7.98h-5.208Z" />
+                    </svg>
+                 </a>
                  {currentView !== 'home' && (
                      <button onClick={() => setCurrentView('home')} className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm">
                          <Squares2X2Icon className="w-3.5 h-3.5 stroke-[2px]" /> Chọn Công Cụ

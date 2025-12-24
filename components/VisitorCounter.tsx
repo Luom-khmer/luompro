@@ -15,13 +15,13 @@ const VisitorCounter: React.FC = () => {
   }, []);
 
   return (
-    <div className="flex items-center space-x-2 text-gray-400" title={`${count} người đang truy cập`}>
-      <div className="relative flex items-center justify-center h-5 w-5">
+    <div className="flex items-center gap-1.5 select-none" title={`${count} người đang truy cập`}>
+      <div className="relative flex items-center justify-center h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-          <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+          <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-500"></span>
       </div>
-      <span className="font-semibold text-white">{count}</span>
-      <span className="text-sm hidden sm:inline">đang truy cập</span>
+      <span className="font-bold text-white text-[10px] tabular-nums">{count}</span>
+      <span className="text-[9px] text-gray-500 uppercase font-bold tracking-wider hidden xl:inline">ONLINE</span>
     </div>
   );
 };

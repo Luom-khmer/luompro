@@ -488,15 +488,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
           <button onClick={() => setActiveTab('studio')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-bold transition-all duration-300 ${activeTab === 'studio' ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
             <PaintBrushIcon className="w-4 h-4" /> Studio Tạo Ảnh
           </button>
+          
+          {/* Cấu Hình Key - Hiển thị cho tất cả mọi người */}
           <button onClick={() => setActiveTab('keys')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-bold transition-all duration-300 ${activeTab === 'keys' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <KeyIcon className="w-4 h-4" /> Cấu Hình Key
+              <KeyIcon className="w-4 h-4" /> Cấu Hình Key
           </button>
       </div>
   );
 
   const renderKeysTabContent = () => (
       <div className="space-y-6 animate-fade-in">
-           {/* Section 1: Google Gemini Key - STILL NEEDED FOR ANALYSIS */}
+           {/* Section 1: Google Gemini Key - VISIBLE TO EVERYONE */}
            <div className="border border-indigo-500/30 rounded-lg p-4 bg-[#1a1a1a]">
                <div className="flex justify-between items-center mb-3">
                    <h3 className="font-bold text-indigo-400 flex items-center gap-2 uppercase text-sm"><CpuChipIcon className="w-5 h-5"/> Google API Key (Dùng cho Phân Tích)</h3>
@@ -577,7 +579,12 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               {gommoModelsList.length === 0 ? (
                   <div className="text-center p-4 bg-black/20 rounded border border-dashed border-gray-700">
                       <p className="text-xs text-gray-500">Chưa tải được danh sách Model.</p>
-                      <p className="text-[10px] text-gray-600">Vui lòng sang tab <strong className="text-teal-400 cursor-pointer" onClick={() => setActiveTab('keys')}>Cấu Hình Key</strong> để kết nối.</p>
+                      {isAdmin && (
+                         <p className="text-[10px] text-gray-600">Vui lòng sang tab <strong className="text-teal-400 cursor-pointer" onClick={() => setActiveTab('keys')}>Cấu Hình Key</strong> để kết nối.</p>
+                      )}
+                      {!isAdmin && (
+                          <p className="text-[10px] text-gray-600">Vui lòng liên hệ Admin để kiểm tra kết nối.</p>
+                      )}
                   </div>
               ) : (
                   <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
