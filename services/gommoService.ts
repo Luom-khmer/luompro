@@ -10,7 +10,7 @@ import {
 } from '../types';
 import { APP_CONFIG } from '../config';
 
-const DOMAIN = "aivideoauto.com";
+const DOMAIN = "cd21047adf4f6f4e";
 
 // Logic chọn Base URL:
 // 1. Ưu tiên Cloudflare Worker (GOMMO_PROXY_URL) nếu có -> Bypass CORS & Timeout.
