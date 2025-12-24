@@ -10,18 +10,13 @@ import {
 } from '../types';
 import { APP_CONFIG } from '../config';
 
-// --- CẤU HÌNH DOMAIN THÔNG MINH (AUTO-SWITCH) ---
-// Logic: 
-// 1. Nếu có PROXY (GOMMO_PROXY_URL có giá trị): Dùng ID ảo "secure-mode-active" để ẩn danh.
-// 2. Nếu chưa có PROXY: Dùng ID thật "aivideoauto.com" để App vẫn hoạt động bình thường (Fallback).
-const HAS_PROXY = !!(APP_CONFIG.GOMMO_PROXY_URL && APP_CONFIG.GOMMO_PROXY_URL.length > 10);
-
-const DOMAIN = HAS_PROXY ? "secure-mode-active" : "aivideoauto.com";
+const DOMAIN = "aivideoauto.com";
 
 // Logic chọn Base URL:
-// Nếu có Proxy thì dùng Proxy, không thì dùng API gốc.
-const BASE_URL = HAS_PROXY
-    ? APP_CONFIG.GOMMO_PROXY_URL!.replace(/\/$/, '') 
+// 1. Ưu tiên Cloudflare Worker (GOMMO_PROXY_URL) nếu có -> Bypass CORS & Timeout.
+// 2. Fallback về API gốc (sẽ bị CORS nếu chạy client-side).
+const BASE_URL = APP_CONFIG.GOMMO_PROXY_URL 
+    ? APP_CONFIG.GOMMO_PROXY_URL.replace(/\/$/, '') 
     : "https://api.gommo.net";
 
 // Constants for endpoints (Dynamic)
@@ -37,11 +32,13 @@ const ENDPOINTS = {
     LIST_IMAGES: `${BASE_URL}/ai/images`
 };
 
-// Helper to create body matching the requirement
+// Helper to create body matching the requirement: 
+// { access_token, domain: "aivideoauto.com", ... }
+// Uses URLSearchParams which automatically sets Content-Type to application/x-www-form-urlencoded
 const createBody = (accessToken: string, params: Record<string, any>) => {
     const paramsObj = new URLSearchParams();
     
-    // Required fields - Token in body
+    // Required fields - Token in body to avoid CORS Preflight issues with custom headers
     paramsObj.append('access_token', accessToken);
     paramsObj.append('domain', DOMAIN);
     
@@ -49,6 +46,7 @@ const createBody = (accessToken: string, params: Record<string, any>) => {
         const value = params[key];
         if (value !== undefined && value !== null) {
             if (typeof value === 'object' || Array.isArray(value)) {
+                // For arrays/objects like 'images' or 'subjects', verify if API expects JSON string
                 paramsObj.append(key, JSON.stringify(value));
             } else {
                 paramsObj.append(key, String(value));
@@ -79,6 +77,7 @@ const processResponse = async (response: Response) => {
                 errorMessage = errorData.message;
             }
         } catch (e) {
+            // If response is not JSON, use status text
             errorMessage = response.statusText || errorMessage;
         }
         throw new Error(errorMessage);
@@ -86,6 +85,7 @@ const processResponse = async (response: Response) => {
     
     const data = await response.json();
     
+    // Check for API-level errors (success: false or error object)
     if (data.error) {
          const msg = (typeof data.error === 'object' && data.error.message) 
             ? data.error.message 
@@ -100,10 +100,7 @@ const processResponse = async (response: Response) => {
 const handleGommoError = (error: any): Error => {
     const msg = error.message || "";
     if (msg === 'Failed to fetch' || msg.includes('NetworkError')) {
-        if (HAS_PROXY) {
-            return new Error("Lỗi kết nối tới Cloudflare Worker. Vui lòng kiểm tra lại Link Proxy trong config.ts");
-        }
-        return new Error("Lỗi kết nối mạng (CORS). Vui lòng cấu hình Cloudflare Proxy để khắc phục.");
+        return new Error("Lỗi kết nối (CORS/Network). Vui lòng điền 'Cloudflare Worker URL' vào file config.ts để khắc phục.");
     }
     return new Error(msg || "Lỗi không xác định từ Gommo Service.");
 };
@@ -277,6 +274,7 @@ export const fetchGommoUserInfo = async (accessToken: string): Promise<GommoUser
         });
         return await processResponse(response);
     } catch (error) {
+        // Suppress generic errors for credit checks to avoid UI noise
         console.warn("Could not fetch user info:", error);
         return { error: { message: "Could not fetch" } };
     }

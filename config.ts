@@ -12,9 +12,10 @@ export const APP_CONFIG = {
     // -> Lấy tại: https://aivideoauto.com/pages/account/apikeys
     GOMMO_API_KEY: "Jgfrhaf/dLPeJmdj7A4RgMJzk4TQakr1PmK14mFhC9FG7VM/I16+ZMvETX/TpokBlAjEO/sb2xNW5a09BG1UUnMOuL6lco2051HwUZY9lBTqvvgETPkQeO/ND5VHWUTgsXb6llG271cbgRhiZJMR1xUx8zm/TQYNs10RzCocpAOIiadIWhypWqBt8uWduO9rM6kWNxBiishkUf49ICR2cQ==",
     
-    // 3. Cloudflare Worker URL (QUAN TRỌNG: Dán link Worker mới của bạn vào đây)
-    // Sau khi dán link mới (có chứa code replace secure-mode-active), F12 sẽ ẩn được ID thật.
-    GOMMO_PROXY_URL: "", 
+    // 3. Cloudflare Worker URL (BẮT BUỘC ĐỂ TRÁNH LỖI CORS & TIMEOUT)
+    // Thay thế bằng link Worker của bạn. VD: "https://my-proxy.user.workers.dev"
+    // Link này giúp ẩn danh và giữ kết nối lâu hơn Vercel (giới hạn 10-60s).
+    GOMMO_PROXY_URL: "https://red-unit-gommo-proxy.dluom4198.workers.dev", 
 
     // 4. Firebase Config (Dành cho chức năng Đăng nhập)
     // -> Lấy tại Firebase Console > Project Settings > General > Your apps
