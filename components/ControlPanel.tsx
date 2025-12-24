@@ -703,8 +703,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                   )}
               </div>
 
-              {/* Configuration Grid */}
-              <div className="grid grid-cols-2 gap-x-3 gap-y-4 mb-5">
+              {/* Configuration Grid - CHANGED TO 3 COLS */}
+              <div className="grid grid-cols-3 gap-3 mb-5">
                   {/* RATIO */}
                   <div>
                       <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">RATIO</label>
@@ -760,32 +760,17 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
                       </div>
                   </div>
 
-                  {/* QTY */}
-                  <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">QTY</label>
-                      <input 
-                          type="number"
-                          min="1"
-                          max="10"
-                          value={settings.quantity || 1}
-                          onChange={(e) => onSettingsChange({ quantity: Math.max(1, Math.min(10, parseInt(e.target.value) || 1)) })}
-                          className="w-full bg-[#151515] text-white text-xs font-bold py-2.5 px-3 rounded-lg border border-gray-700 focus:outline-none focus:border-sky-500 text-center"
-                      />
-                  </div>
+                  {/* QTY REMOVED */}
               </div>
 
               {/* Price Calculation Footer */}
-              <div className="flex items-center justify-between pt-2 mt-2">
+              <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-800/50">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                      <BanknotesIcon className="w-4 h-4 text-yellow-600" />
-                      <span>{unitPrice}</span>
-                      <span className="text-gray-600">×</span>
-                      <span>{settings.quantity || 1}</span>
+                      <span>Chi phí ước tính:</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-yellow-500 font-bold text-sm">
-                      <span>=</span>
                       <BanknotesIcon className="w-4 h-4" />
-                      <span>{currentPrice}</span>
+                      <span>{currentPrice} Credits</span>
                   </div>
               </div>
           </div>
