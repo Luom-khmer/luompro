@@ -78,6 +78,9 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
     const [sliderPosition, setSliderPosition] = useState(50);
     const [viewMode, setViewMode] = useState<'compare' | 'single'>('compare');
     
+    // Fix slider dimension sync
+    const [sliderDimensions, setSliderDimensions] = useState({ width: 0, height: 0 });
+    
     // Default English Prompt
     const [customPrompt, setCustomPrompt] = useState(
         "Upgrade and restore image quality based on the original image as the sole reference. Maintain identity and all content exactly as the original: same subject, facial features, expression, pose, body proportions, hairstyle, outfit, accessories, background, objects, composition, framing, and perspective. Absolutely DO NOT add, remove, replace, or 'hallucinate' any details."
@@ -104,6 +107,26 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
     const containerRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [isResizing, setIsResizing] = useState(false);
+
+    // --- EFFECT: Sync Slider Dimensions ---
+    useEffect(() => {
+        if (viewMode === 'compare' && containerRef.current) {
+            const updateSize = () => {
+                if (containerRef.current) {
+                    setSliderDimensions({
+                        width: containerRef.current.offsetWidth,
+                        height: containerRef.current.offsetHeight
+                    });
+                }
+            };
+            
+            updateSize();
+            const observer = new ResizeObserver(updateSize);
+            observer.observe(containerRef.current);
+            
+            return () => observer.disconnect();
+        }
+    }, [viewMode, restoredPreview]);
 
     // --- Fetch Models on Mount or Key Change ---
     useEffect(() => {
@@ -757,13 +780,15 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
                                         <img 
                                             src={originalPreview!} 
                                             alt="Original" 
-                                            className="absolute inset-0 w-full h-full object-contain bg-[#111]"
+                                            className="absolute top-0 left-0 max-w-none h-full object-contain bg-[#111]"
                                             draggable={false}
-                                            // Trick to keep aspect ratio matching parent even when clipped
-                                            style={{ width: containerRef.current?.clientWidth, height: containerRef.current?.clientHeight }} 
+                                            style={{ 
+                                                width: sliderDimensions.width ? `${sliderDimensions.width}px` : '100%',
+                                                height: '100%' 
+                                            }} 
                                         />
                                         {/* Label */}
-                                        <div className="absolute top-4 left-4 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur">ẢNH GỐC</div>
+                                        <div className="absolute top-4 left-4 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur whitespace-nowrap">ẢNH GỐC</div>
                                     </div>
 
                                     {/* Handle */}
