@@ -192,17 +192,30 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         }
     };
 
-    // Apply Result Logic
-    const handleApplyResult = () => {
+    // Apply Result Logic - FIX: Convert to Blob to ensure clean alpha channel handling
+    const handleApplyResult = async () => {
         if (!resultSrc) return;
-        // Swap result to source
-        setImageSrc(resultSrc);
-        // Clear result
-        setResultSrc(null);
-        // Reset view to original (which now has the new image)
-        setViewMode('original');
-        // Clear mask to start fresh
-        clearMask();
+        
+        try {
+            // Convert remote URL to local Blob URL
+            // This prevents CORS issues and ensures the Canvas can correctly read pixel data (especially alpha)
+            // preventing the "black mask" issue on re-generation.
+            const response = await fetch(resultSrc);
+            const blob = await response.blob();
+            const localUrl = URL.createObjectURL(blob);
+            
+            setImageSrc(localUrl);
+            setResultSrc(null);
+            setViewMode('original');
+            clearMask();
+        } catch (e) {
+            console.error("Failed to convert result to blob, falling back to URL", e);
+            // Fallback (might still have black mask issue but better than crashing)
+            setImageSrc(resultSrc);
+            setResultSrc(null);
+            setViewMode('original');
+            clearMask();
+        }
     };
 
     // Draw Image to Canvas when loaded
@@ -337,6 +350,9 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                     canvas.height = h;
                     const ctx = canvas.getContext('2d');
                     if (!ctx) { reject("Canvas error"); return; }
+                    
+                    // Ensure transparent background
+                    ctx.clearRect(0, 0, w, h);
 
                     // 1. Draw Original Image
                     ctx.drawImage(img, 0, 0, w, h);
