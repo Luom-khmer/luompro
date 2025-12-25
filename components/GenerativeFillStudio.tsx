@@ -13,7 +13,7 @@ import {
     CheckIcon, 
     CubeIcon, 
     BanknotesIcon,
-    XMarkIcon // Added Import
+    XMarkIcon
 } from '@heroicons/react/24/outline';
 import { generateGommoImage, pollGommoImageCompletion, fetchGommoModels } from '../services/gommoService';
 import { deductUserCredits } from '../services/firebaseService';
@@ -191,27 +191,39 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         }
     };
 
-    // Draw Image to Canvas when loaded
+    // Draw Image to Canvas when loaded OR viewMode changes
     useEffect(() => {
-        if (!imageSrc || !imageCanvasRef.current || !maskCanvasRef.current) return;
+        // Determine which image to show based on viewMode
+        const activeSrc = (viewMode === 'edited' && resultSrc) ? resultSrc : imageSrc;
+
+        if (!activeSrc || !imageCanvasRef.current || !maskCanvasRef.current) return;
         
         const img = new Image();
-        img.src = imageSrc;
+        img.crossOrigin = "anonymous"; // Important for editing results from URL
+        img.src = activeSrc;
         img.onload = () => {
             const w = img.width;
             const h = img.height;
             
+            // Set canvas dimensions to match image
             imageCanvasRef.current!.width = w;
             imageCanvasRef.current!.height = h;
             maskCanvasRef.current!.width = w;
             maskCanvasRef.current!.height = h;
             
+            // Clear mask when switching base images to avoid misalignment
+            const maskCtx = maskCanvasRef.current!.getContext('2d');
+            if (maskCtx) maskCtx.clearRect(0, 0, w, h);
+            setHasMask(false);
+
+            // Draw image
             const ctx = imageCanvasRef.current!.getContext('2d');
             if (ctx) ctx.drawImage(img, 0, 0, w, h);
         };
-    }, [imageSrc]);
+    }, [imageSrc, resultSrc, viewMode]);
 
-    // Update Result View
+    // Update Result View -> removed automatic mode switch to allow user control, 
+    // but when result arrives we usually want to see it.
     useEffect(() => {
         if (resultSrc) setViewMode('edited');
     }, [resultSrc]);
@@ -229,7 +241,9 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
     };
 
     const startDrawing = (e: MouseEvent) => {
-        if (!imageSrc || viewMode === 'edited' || viewMode === 'compare') return; 
+        // Allow drawing in Original AND Edited modes (disable only in compare)
+        if (!imageSrc || viewMode === 'compare') return; 
+        
         setIsDrawing(true);
         setHasMask(true);
         const pos = getMousePos(e);
@@ -285,6 +299,14 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
             return;
         }
         
+        // Determine the source image based on current view
+        // If viewing 'Edited', we use the resultSrc as the base for the next generation
+        const activeSrc = (viewMode === 'edited' && resultSrc) ? resultSrc : imageSrc;
+        if (!activeSrc) {
+            alert("Không tìm thấy ảnh gốc.");
+            return;
+        }
+
         // Auto-fill prompt if empty but mask exists
         let finalPrompt = prompt.trim();
         if (!finalPrompt) {
@@ -300,12 +322,11 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         try {
             // --- NEW: COMPOSITE MASK LOGIC ---
             // Create a PNG where masked areas are TRANSPARENT (Alpha = 0)
-            // Most inpainting APIs (OpenAI, Stable Diffusion) expect RGBA with transparency
             
             const fullBase64 = await new Promise<string>((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = "anonymous";
-                img.src = imageSrc!;
+                img.src = activeSrc; // Load current visible image
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
                     
@@ -323,7 +344,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                     const ctx = canvas.getContext('2d');
                     if (!ctx) { reject("Canvas error"); return; }
 
-                    // 1. Draw Original Image
+                    // 1. Draw Active Image (Original OR Previous Result)
                     ctx.drawImage(img, 0, 0, w, h);
 
                     // 2. If Mask exists, "cut" holes in the image
@@ -378,6 +399,28 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
             alert("Lỗi: " + e.message);
         } finally {
             setIsProcessing(false);
+        }
+    };
+
+    // --- Handle Download ---
+    const handleDownload = async () => {
+        if (!resultSrc) return;
+        try {
+            // Fetch blob to force download and avoid new tab opening
+            const response = await fetch(resultSrc);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `generative_fill_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (e) {
+            console.error("Download failed", e);
+            // Fallback
+            window.open(resultSrc, '_blank');
         }
     };
 
@@ -629,7 +672,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                         {/* Wrapper to center and contain canvases */}
                         <div className="relative shadow-2xl border border-gray-800 rounded-lg overflow-hidden max-w-full max-h-full inline-block">
                             
-                            {/* Comparison View */}
+                            {/* Comparison View - Keep separate as simple img tags for now */}
                             {viewMode === 'compare' && resultSrc ? (
                                 <div className="relative w-full h-full flex gap-1">
                                     <div className="relative">
@@ -642,28 +685,22 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                                     </div>
                                 </div>
                             ) : (
-                                /* Single View (Original + Mask OR Edited) */
+                                /* Single View (Original OR Edited) -> Use Canvas to allow drawing on both */
                                 <>
-                                    {viewMode === 'edited' && resultSrc ? (
-                                        <img src={resultSrc} className="max-w-full max-h-[85vh] object-contain block" />
-                                    ) : (
-                                        <>
-                                            {/* Original Image Canvas */}
-                                            <canvas 
-                                                ref={imageCanvasRef}
-                                                className="max-w-full max-h-[85vh] block object-contain pointer-events-none"
-                                            />
-                                            {/* Mask Canvas (Overlay) - Handle Events Here */}
-                                            <canvas 
-                                                ref={maskCanvasRef}
-                                                className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
-                                                onMouseDown={startDrawing}
-                                                onMouseMove={moveDrawing}
-                                                onMouseUp={stopDrawing}
-                                                onMouseLeave={stopDrawing}
-                                            />
-                                        </>
-                                    )}
+                                    {/* Original/Edited Image Canvas - content managed by useEffect */}
+                                    <canvas 
+                                        ref={imageCanvasRef}
+                                        className="max-w-full max-h-[85vh] block object-contain pointer-events-none"
+                                    />
+                                    {/* Mask Canvas (Overlay) - Handle Events Here */}
+                                    <canvas 
+                                        ref={maskCanvasRef}
+                                        className="absolute inset-0 w-full h-full cursor-crosshair touch-none"
+                                        onMouseDown={startDrawing}
+                                        onMouseMove={moveDrawing}
+                                        onMouseUp={stopDrawing}
+                                        onMouseLeave={stopDrawing}
+                                    />
                                 </>
                             )}
 
@@ -677,9 +714,13 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                             {/* Top Right Controls: Download & Close */}
                             <div className="absolute top-4 right-4 z-30 flex gap-2">
                                 {resultSrc && (
-                                    <a href={resultSrc} download="generative_fill_result.jpg" className="p-2 bg-white/10 hover:bg-blue-600 text-white rounded-lg backdrop-blur border border-white/20 transition-all flex items-center gap-2" title="Tải về">
+                                    <button 
+                                        onClick={handleDownload}
+                                        className="p-2 bg-white/10 hover:bg-blue-600 text-white rounded-lg backdrop-blur border border-white/20 transition-all flex items-center gap-2"
+                                        title="Tải về"
+                                    >
                                         <ArrowDownTrayIcon className="w-5 h-5" />
-                                    </a>
+                                    </button>
                                 )}
                                 {/* NEW: Close Button */}
                                 <button 
