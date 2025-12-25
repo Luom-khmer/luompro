@@ -45,6 +45,25 @@ const RATIO_LABELS: Record<string, string> = {
     'auto': 'Gốc'
 };
 
+// Enhancement Options with English Prompts
+const ENHANCEMENT_OPTIONS = [
+    { 
+        id: 'upscale', 
+        label: 'Tăng nét', 
+        prompt: "Upscale this image to 2k/4k using AI. Keep original details, increase sharpness and clarity without artifacts." 
+    },
+    { 
+        id: 'restore_damage', 
+        label: 'Phục hồi ảnh rách ố vàng', 
+        prompt: "Analyze and perform 5 steps: 1. Increase sharpness 2. Restore color 3. Denoise 4. Brighten 5. Balance skin tone. Explain each step clearly." 
+    },
+    { 
+        id: 'studio_bg', 
+        label: 'Thay nền studio', 
+        prompt: "Remove the old background and replace it with a bright minimal studio background, making the image look new, clear, and professional." 
+    }
+];
+
 const RestorationStudio: React.FC<RestorationStudioProps> = ({ 
     apiKey, gommoApiKey, userCredits, currentUser, onUpdateCredits 
 }) => {
@@ -58,9 +77,12 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
     const [isAnalyzing, setIsAnalyzing] = useState(false); // State for Gemini Analysis
     const [sliderPosition, setSliderPosition] = useState(50);
     const [viewMode, setViewMode] = useState<'compare' | 'single'>('compare');
+    
+    // Default English Prompt
     const [customPrompt, setCustomPrompt] = useState(
-        "RESTORE: Portrait photograph, high quality, sharp details, remove noise, correct colors, enhance facial features, photorealistic skin texture, clear eyes, professional lighting."
+        "Upgrade and restore image quality based on the original image as the sole reference. Maintain identity and all content exactly as the original: same subject, facial features, expression, pose, body proportions, hairstyle, outfit, accessories, background, objects, composition, framing, and perspective. Absolutely DO NOT add, remove, replace, or 'hallucinate' any details."
     );
+
     const [issues, setIssues] = useState<typeof DEFAULT_ISSUES>([]); // Initialize empty for dynamic loading
     const [error, setError] = useState<string | null>(null);
 
@@ -74,6 +96,9 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
     const [selectedRatio, setSelectedRatio] = useState<string>('auto');
     const [selectedMode, setSelectedMode] = useState<string>('');
     const [selectedResolution, setSelectedResolution] = useState<string>('1k');
+    
+    // Checkbox States
+    const [activeEnhancements, setActiveEnhancements] = useState<string[]>([]);
 
     const dropdownRef = useRef<HTMLDivElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -204,9 +229,15 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
                 6. Scratches, dust spots, or physical damage
 
                 PART 2: RESTORATION PLAN
-                Write a detailed, high-quality prompt in English to restore this image using AI. 
-                Focus on: "High quality, photorealistic, sharp details, correct colors, restore faces, remove noise/scratches". 
-                Describe the subject briefly to keep context.
+                Generate a "restoration_prompt" string in ENGLISH.
+                
+                STRICT REQUIREMENTS FOR "restoration_prompt":
+                1. START EXACTLY WITH THIS SENTENCE: 
+                   "Upgrade and restore image quality based on the original image as the sole reference. Maintain identity and all content exactly as the original: same subject, facial features, expression, pose, body proportions, hairstyle, outfit, accessories, background, objects, composition, framing, and perspective. Absolutely DO NOT add, remove, replace, or 'hallucinate' any details."
+                
+                2. FORBIDDEN: Do NOT describe the subject's appearance (e.g. gender, age, clothes, pose). Do NOT say "A woman..." or "A man...". The restoration engine uses the image itself.
+                
+                3. TECHNICAL FIXES: Append a section starting with "Technical improvements:" listing specific fixes for the defects found in Part 1 (e.g. "Denoise, sharpen details, white balance, skin recovery...").
 
                 Return ONLY a JSON object with this structure:
                 {
@@ -260,8 +291,10 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
         setRestoredPreview(null);
         setError(null);
         
-        // Reset issues
+        // Reset issues and enhancements
         setIssues([]);
+        setActiveEnhancements([]);
+        setCustomPrompt("Upgrade and restore image quality based on the original image as the sole reference. Maintain identity and all content exactly as the original: same subject, facial features, expression, pose, body proportions, hairstyle, outfit, accessories, background, objects, composition, framing, and perspective. Absolutely DO NOT add, remove, replace, or 'hallucinate' any details.");
         
         // Trigger Analysis
         await analyzeImageWithGemini(file);
@@ -272,6 +305,22 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
         setIsDragging(false);
         if (e.dataTransfer.files?.[0]) {
             handleFileUpload(e.dataTransfer.files[0]);
+        }
+    };
+
+    // Handle Toggle Enhancements
+    const handleEnhancementToggle = (id: string, promptText: string) => {
+        if (activeEnhancements.includes(id)) {
+            // Remove
+            setActiveEnhancements(prev => prev.filter(item => item !== id));
+            setCustomPrompt(prev => prev.replace(" " + promptText, "").replace(promptText, "").trim());
+        } else {
+            // Add
+            setActiveEnhancements(prev => [...prev, id]);
+            setCustomPrompt(prev => {
+                const clean = prev.trim();
+                return clean ? clean + " " + promptText : promptText;
+            });
         }
     };
 
@@ -561,14 +610,33 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
                     <div className="flex-1 flex flex-col min-h-0">
                         <div className="flex justify-between items-center mb-2">
                              <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">KẾ HOẠCH PHỤC CHẾ</label>
-                             <button onClick={() => setCustomPrompt('')} className="text-[10px] text-gray-500 hover:text-white flex items-center gap-1"><ArrowPathIcon className="w-3 h-3"/> Reset</button>
+                             <button onClick={() => setCustomPrompt("Upgrade and restore image quality based on the original image as the sole reference. Maintain identity and all content exactly as the original: same subject, facial features, expression, pose, body proportions, hairstyle, outfit, accessories, background, objects, composition, framing, and perspective. Absolutely DO NOT add, remove, replace, or 'hallucinate' any details.")} className="text-[10px] text-gray-500 hover:text-white flex items-center gap-1"><ArrowPathIcon className="w-3 h-3"/> Reset</button>
                         </div>
                         <textarea 
                             value={customPrompt}
                             onChange={(e) => setCustomPrompt(e.target.value)}
-                            className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg p-3 text-xs text-gray-300 focus:outline-none focus:border-purple-500 resize-none h-32 leading-relaxed custom-scrollbar"
-                            placeholder="Mô tả chi tiết yêu cầu phục chế..."
+                            className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg p-3 text-xs text-gray-300 focus:outline-none focus:border-purple-500 resize-none h-32 leading-relaxed custom-scrollbar mb-3"
+                            placeholder="Detailed restoration request..."
                         />
+                        
+                        {/* New Enhancement Options */}
+                        <div className="space-y-2">
+                            {ENHANCEMENT_OPTIONS.map((opt) => (
+                                <label key={opt.id} className="flex items-start gap-2 cursor-pointer group p-2 rounded-lg bg-[#1a1a1a] border border-gray-700 hover:border-gray-500 transition-colors">
+                                    <div className="relative flex items-center">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={activeEnhancements.includes(opt.id)}
+                                            onChange={() => handleEnhancementToggle(opt.id, opt.prompt)}
+                                            className="w-4 h-4 bg-gray-800 border-gray-600 rounded focus:ring-purple-500 focus:ring-1 text-purple-600 cursor-pointer" 
+                                        />
+                                    </div>
+                                    <span className={`text-xs font-medium transition-colors ${activeEnhancements.includes(opt.id) ? 'text-purple-400' : 'text-gray-400 group-hover:text-gray-300'}`}>
+                                        {opt.label}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
                     </div>
 
                     {/* Start Button */}
@@ -607,132 +675,123 @@ const RestorationStudio: React.FC<RestorationStudioProps> = ({
                         <div className="bg-[#1a1a1a]/90 backdrop-blur border border-gray-700 rounded-lg p-1 flex">
                             <button 
                                 onClick={() => setViewMode('compare')}
-                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'compare' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'compare' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <ArrowsRightLeftIcon className="w-3.5 h-3.5" /> Compare
+                                <ArrowsRightLeftIcon className="w-4 h-4" /> So sánh
                             </button>
                             <button 
                                 onClick={() => setViewMode('single')}
-                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'single' ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white'}`}
+                                className={`px-3 py-1.5 rounded text-xs font-bold transition-all flex items-center gap-1.5 ${viewMode === 'single' ? 'bg-purple-600 text-white shadow' : 'text-gray-400 hover:text-white'}`}
                             >
-                                <Square2StackIcon className="w-3.5 h-3.5" /> Single
+                                <Square2StackIcon className="w-4 h-4" /> Kết quả
                             </button>
                         </div>
                     )}
-                    
-                    <button 
-                        onClick={handleDownload}
-                        disabled={!restoredPreview}
-                        className={`px-4 py-2 rounded-lg font-bold text-xs uppercase tracking-wide flex items-center gap-2 transition-all ${
-                            restoredPreview 
-                            ? 'bg-white text-black hover:bg-gray-200' 
-                            : 'bg-gray-800 text-gray-500 cursor-not-allowed'
-                        }`}
-                    >
-                        <ArrowDownTrayIcon className="w-4 h-4" /> Export
-                    </button>
+                    {restoredPreview && (
+                        <button 
+                            onClick={handleDownload}
+                            className="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-bold text-sm shadow-lg flex items-center gap-2"
+                        >
+                            <ArrowDownTrayIcon className="w-4 h-4" /> Tải về
+                        </button>
+                    )}
                 </div>
 
-                {/* Viewport */}
+                {/* Main Viewport */}
                 <div 
-                    className="flex-1 relative flex items-center justify-center p-4 md:p-8"
-                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                    onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                    className="flex-1 flex items-center justify-center p-8 bg-[#0a0a0a] relative overflow-hidden"
                     onDrop={handleDrop}
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
                 >
-                    {/* Placeholder when no image */}
-                    {!originalPreview && (
-                        <div className={`border-2 border-dashed rounded-2xl w-full max-w-xl h-64 flex flex-col items-center justify-center transition-all ${isDragging ? 'border-purple-500 bg-purple-900/10' : 'border-gray-700 hover:border-gray-500'}`}>
-                            <div className="w-16 h-16 bg-gray-800 rounded-full flex items-center justify-center mb-4">
-                                <PhotoIcon className="w-8 h-8 text-gray-400" />
-                            </div>
-                            <h3 className="text-xl font-bold text-gray-300">Kéo thả ảnh vào đây</h3>
-                            <p className="text-gray-500 text-sm mt-1">hoặc tải ảnh lên từ thanh bên trái</p>
+                    {/* Drag Overlay */}
+                    {isDragging && (
+                        <div className="absolute inset-0 bg-purple-900/20 border-4 border-dashed border-purple-500 z-50 flex flex-col items-center justify-center pointer-events-none backdrop-blur-sm">
+                            <ArrowDownTrayIcon className="w-16 h-16 text-purple-400 animate-bounce" />
+                            <h3 className="text-xl font-bold text-white mt-4">Thả ảnh vào đây để phục chế</h3>
                         </div>
                     )}
 
-                    {/* Image Viewer */}
-                    {originalPreview && (
-                        <div 
-                            ref={containerRef}
-                            className="relative w-full h-full max-h-[85vh] select-none rounded-lg overflow-hidden shadow-2xl bg-[#050505] flex items-center justify-center"
-                            onMouseMove={handleMouseMove}
-                            onTouchMove={handleTouchMove}
-                            onMouseUp={() => setIsResizing(false)}
-                            onMouseLeave={() => setIsResizing(false)}
-                            onTouchEnd={() => setIsResizing(false)}
-                        >
-                             {/* Processing Overlay */}
-                             {isProcessing && (
-                                <div className="absolute top-8 left-1/2 -translate-x-1/2 z-40 bg-[#1a1a1a]/90 backdrop-blur border border-purple-500/30 px-6 py-3 rounded-full flex items-center gap-3 shadow-[0_0_30px_rgba(168,85,247,0.3)] animate-fade-in">
-                                    <div className="w-5 h-5 border-2 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
-                                    <span className="text-purple-200 text-sm font-bold tracking-wide">Đang phục chế...</span>
+                    {!originalFile ? (
+                        <div className="text-center flex flex-col items-center">
+                            <div className="w-24 h-24 bg-[#1a1a1a] rounded-3xl border border-gray-700 flex items-center justify-center mb-6 shadow-2xl">
+                                <PhotoIcon className="w-10 h-10 text-gray-500" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-white mb-2">Bắt đầu phục chế ảnh</h2>
+                            <p className="text-gray-500 max-w-sm mb-8">
+                                Kéo thả ảnh vào đây hoặc chọn từ menu bên trái. Hỗ trợ JPG, PNG chất lượng cao.
+                            </p>
+                            <label className="px-6 py-3 bg-[#1a1a1a] hover:bg-[#252525] border border-gray-700 rounded-xl cursor-pointer text-sm font-bold text-white transition-all">
+                                Tải ảnh lên
+                                <input type="file" className="hidden" onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])} />
+                            </label>
+                        </div>
+                    ) : (
+                        <div className="relative w-full h-full max-w-4xl max-h-full flex items-center justify-center">
+                            {/* Compare Slider Mode */}
+                            {viewMode === 'compare' && restoredPreview ? (
+                                <div 
+                                    ref={containerRef}
+                                    className="relative w-full h-full select-none cursor-col-resize overflow-hidden rounded-xl shadow-2xl border border-gray-800"
+                                    onMouseDown={() => setIsResizing(true)}
+                                    onMouseUp={() => setIsResizing(false)}
+                                    onMouseLeave={() => setIsResizing(false)}
+                                    onMouseMove={handleMouseMove}
+                                    onTouchStart={() => setIsResizing(true)}
+                                    onTouchEnd={() => setIsResizing(false)}
+                                    onTouchMove={handleTouchMove}
+                                >
+                                    {/* Restored Image (Underneath) */}
+                                    <img 
+                                        src={restoredPreview} 
+                                        alt="Restored" 
+                                        className="absolute inset-0 w-full h-full object-contain bg-[#111]"
+                                        draggable={false}
+                                    />
+
+                                    {/* Original Image (On Top, Clipped) */}
+                                    <div 
+                                        className="absolute inset-0 overflow-hidden border-r-2 border-white/50"
+                                        style={{ width: `${sliderPosition}%` }}
+                                    >
+                                        <img 
+                                            src={originalPreview!} 
+                                            alt="Original" 
+                                            className="absolute inset-0 w-full h-full object-contain bg-[#111]"
+                                            draggable={false}
+                                            // Trick to keep aspect ratio matching parent even when clipped
+                                            style={{ width: containerRef.current?.clientWidth, height: containerRef.current?.clientHeight }} 
+                                        />
+                                        {/* Label */}
+                                        <div className="absolute top-4 left-4 bg-black/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur">ẢNH GỐC</div>
+                                    </div>
+
+                                    {/* Handle */}
+                                    <div 
+                                        className="absolute top-0 bottom-0 w-1 bg-white cursor-col-resize z-20 shadow-[0_0_10px_rgba(0,0,0,0.5)]"
+                                        style={{ left: `${sliderPosition}%` }}
+                                    >
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white rounded-full shadow-lg flex items-center justify-center">
+                                            <ArrowsRightLeftIcon className="w-4 h-4 text-black" />
+                                        </div>
+                                    </div>
+
+                                    {/* Label Right */}
+                                    <div className="absolute top-4 right-4 bg-purple-600/80 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur z-10">KẾT QUẢ</div>
                                 </div>
-                             )}
-
-                             {/* --- MODE: SINGLE (Result Only) --- */}
-                             {viewMode === 'single' && (
-                                 <img 
-                                     src={restoredPreview || originalPreview} 
-                                     alt="Result" 
-                                     className="max-w-full max-h-full object-contain pointer-events-none"
-                                 />
-                             )}
-
-                             {/* --- MODE: COMPARE --- */}
-                             {viewMode === 'compare' && (
-                                 <div className="relative w-full h-full flex items-center justify-center">
-                                     {/* Base Layer (Original) */}
-                                     <div className="relative h-full w-full flex items-center justify-center">
-                                         <img 
-                                            src={originalPreview} 
-                                            className="absolute max-w-full max-h-full object-contain pointer-events-none z-10 opacity-100" 
-                                            alt="Original"
-                                         />
-                                         
-                                         {/* Overlay (Restored) - Clipped */}
-                                         {restoredPreview && (
-                                             <div 
-                                                className="absolute inset-0 z-20 flex items-center justify-center overflow-hidden"
-                                                style={{ clipPath: `inset(0 0 0 ${sliderPosition}%)` }} // Clip from left
-                                             >
-                                                 <img 
-                                                    src={restoredPreview} 
-                                                    className="max-w-full max-h-full object-contain pointer-events-none w-auto h-auto" 
-                                                    alt="Restored"
-                                                 />
-                                                 
-                                                 {/* Labels Inside */}
-                                                 <div className="absolute bottom-4 right-4 bg-blue-600/80 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur">
-                                                     Restored
-                                                 </div>
-                                             </div>
-                                         )}
-
-                                         {/* Labels for Original */}
-                                         <div className="absolute bottom-4 left-4 z-30 bg-gray-800/60 text-white text-[10px] font-bold px-2 py-1 rounded backdrop-blur border border-gray-600">
-                                             Original
-                                         </div>
-
-                                         {/* Slider Handle */}
-                                         {restoredPreview && (
-                                             <div 
-                                                className="absolute inset-y-0 z-30 w-1 bg-white/50 cursor-ew-resize hover:bg-white transition-colors flex flex-col justify-center items-center group"
-                                                style={{ left: `${sliderPosition}%` }}
-                                                onMouseDown={() => setIsResizing(true)}
-                                                onTouchStart={() => setIsResizing(true)}
-                                             >
-                                                 <div className="w-8 h-8 rounded-full bg-white shadow-lg flex items-center justify-center text-gray-800 transform group-hover:scale-110 transition-transform">
-                                                     <ArrowsRightLeftIcon className="w-5 h-5" />
-                                                 </div>
-                                                 {/* Vertical Line Visual */}
-                                                 <div className="w-px h-full bg-white/50 absolute top-0 pointer-events-none"></div>
-                                             </div>
-                                         )}
-                                     </div>
-                                 </div>
-                             )}
-
+                            ) : (
+                                // Single View (Original or Result)
+                                <div className="relative w-full h-full flex items-center justify-center">
+                                    <img 
+                                        src={restoredPreview || originalPreview!} 
+                                        alt="View" 
+                                        className="max-w-full max-h-full object-contain rounded-xl shadow-2xl border border-gray-800"
+                                    />
+                                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 text-white px-4 py-2 rounded-full text-xs font-bold backdrop-blur border border-white/10">
+                                        {restoredPreview ? "KẾT QUẢ PHỤC CHẾ" : "ẢNH GỐC (CHƯA XỬ LÝ)"}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
