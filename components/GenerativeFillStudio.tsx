@@ -12,10 +12,10 @@ import {
     ChevronDownIcon, 
     CheckIcon, 
     CubeIcon, 
-    BanknotesIcon 
+    BanknotesIcon,
+    XMarkIcon // Added Import
 } from '@heroicons/react/24/outline';
 import { generateGommoImage, pollGommoImageCompletion, fetchGommoModels } from '../services/gommoService';
-import { resizeImage } from '../services/geminiService';
 import { deductUserCredits } from '../services/firebaseService';
 import { GommoModel } from '../types';
 
@@ -72,6 +72,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
     // Drawing State
     const [isDrawing, setIsDrawing] = useState(false);
     const lastPos = useRef<{x: number, y: number} | null>(null);
+    const [hasMask, setHasMask] = useState(false);
 
     // --- Helpers ---
     
@@ -168,8 +169,22 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         setImageSrc(url);
         setResultSrc(null);
         setViewMode('original');
+        setHasMask(false);
         
         // Clear mask
+        if (maskCanvasRef.current) {
+            const ctx = maskCanvasRef.current.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height);
+        }
+    };
+
+    // Close / Reset Image Handler
+    const handleCloseImage = () => {
+        setImageFile(null);
+        setImageSrc(null);
+        setResultSrc(null);
+        setViewMode('original');
+        setHasMask(false);
         if (maskCanvasRef.current) {
             const ctx = maskCanvasRef.current.getContext('2d');
             if (ctx) ctx.clearRect(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height);
@@ -216,6 +231,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
     const startDrawing = (e: MouseEvent) => {
         if (!imageSrc || viewMode === 'edited' || viewMode === 'compare') return; 
         setIsDrawing(true);
+        setHasMask(true);
         const pos = getMousePos(e);
         lastPos.current = pos;
         draw(pos, pos);
@@ -230,7 +246,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         ctx.lineWidth = brushSize * (canvas.width / (canvasContainerRef.current?.clientWidth || 500)); 
-        ctx.strokeStyle = `${brushColor}80`; 
+        ctx.strokeStyle = `${brushColor}`; // Use solid color for display
         
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
@@ -254,10 +270,11 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
         if (maskCanvasRef.current) {
             const ctx = maskCanvasRef.current.getContext('2d');
             if (ctx) ctx.clearRect(0, 0, maskCanvasRef.current.width, maskCanvasRef.current.height);
+            setHasMask(false);
         }
     };
 
-    // --- Generate Logic ---
+    // --- Generate Logic (Updated for Masking) ---
     const handleGenerate = async () => {
         if (!imageFile || !currentUser || !gommoApiKey) {
             alert("Vui lòng đăng nhập và cấu hình API Key.");
@@ -267,29 +284,75 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
             alert(`Không đủ credits (Cần ${estimatedCost}).`);
             return;
         }
-        if (!prompt.trim()) {
-            alert("Vui lòng nhập mô tả thay đổi.");
-            return;
+        
+        // Auto-fill prompt if empty but mask exists
+        let finalPrompt = prompt.trim();
+        if (!finalPrompt) {
+            if (hasMask) {
+                finalPrompt = "Remove the selected object and fill the background seamlessly.";
+            } else {
+                alert("Vui lòng nhập mô tả thay đổi hoặc vẽ vùng chọn.");
+                return;
+            }
         }
 
         setIsProcessing(true);
         try {
-            const base64Data = await resizeImage(imageFile, 1536, 1536, 0.7);
-            const mimeType = imageFile.type === 'image/png' ? 'image/png' : 'image/jpeg';
-            const fullBase64 = `data:${mimeType};base64,${base64Data}`;
+            // --- NEW: COMPOSITE MASK LOGIC ---
+            // Create a PNG where masked areas are TRANSPARENT (Alpha = 0)
+            // Most inpainting APIs (OpenAI, Stable Diffusion) expect RGBA with transparency
+            
+            const fullBase64 = await new Promise<string>((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = "anonymous";
+                img.src = imageSrc!;
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    
+                    // Resize logic to keep payload reasonable (Max 1536px)
+                    const MAX_DIM = 1536;
+                    let w = img.width;
+                    let h = img.height;
+                    const ratio = Math.min(MAX_DIM / w, MAX_DIM / h, 1);
+                    
+                    w = Math.floor(w * ratio);
+                    h = Math.floor(h * ratio);
+                    
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) { reject("Canvas error"); return; }
+
+                    // 1. Draw Original Image
+                    ctx.drawImage(img, 0, 0, w, h);
+
+                    // 2. If Mask exists, "cut" holes in the image
+                    if (hasMask && maskCanvasRef.current) {
+                        ctx.globalCompositeOperation = 'destination-out';
+                        // Draw the mask canvas scaled to the output size
+                        ctx.drawImage(maskCanvasRef.current, 0, 0, w, h);
+                        // Reset composite
+                        ctx.globalCompositeOperation = 'source-over';
+                    }
+
+                    // 3. Export as PNG (Important for Transparency)
+                    resolve(canvas.toDataURL('image/png'));
+                };
+                img.onerror = (e) => reject(e);
+            });
 
             let apiRatio = selectedRatio === 'auto' ? 'auto' : selectedRatio.replace(':', '_');
 
             const genRes = await generateGommoImage(
                 gommoApiKey,
-                selectedModelId, // Use selected model
-                prompt,
+                selectedModelId,
+                finalPrompt,
                 {
                     editImage: true,
-                    base64Image: fullBase64,
-                    resolution: selectedResolution, // Use selected resolution
-                    ratio: apiRatio, // Use selected ratio
-                    mode: selectedMode || undefined, // Use selected mode
+                    base64Image: fullBase64, // Now contains transparency holes
+                    resolution: selectedResolution,
+                    ratio: apiRatio,
+                    mode: selectedMode || undefined,
                     project_id: 'generative_fill'
                 }
             );
@@ -324,7 +387,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
             {/* --- LEFT SIDEBAR (TOOLS) --- */}
             <aside className="w-[340px] shrink-0 border-r border-gray-800 bg-[#141414] flex flex-col h-full overflow-y-auto custom-scrollbar p-5">
                 
-                {/* Header with Settings Icon on Right - UPDATED TO ADOBE STYLE */}
+                {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
                         <div className="p-1.5 rounded bg-gradient-to-tr from-blue-600 to-purple-600 shadow-lg shadow-blue-900/20">
@@ -487,7 +550,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                         <textarea 
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            placeholder="Ví dụ: 'Thêm kính mát', 'Đổi màu mắt thành xanh', 'Xóa vật thể này'..."
+                            placeholder={hasMask ? "Ví dụ: 'Thêm kính mát', 'Xóa vật thể'..." : "Vẽ lên ảnh rồi nhập mô tả..."}
                             className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-blue-500 h-28 resize-none"
                         />
                         <SparklesIcon className="w-5 h-5 text-gray-500 absolute bottom-3 right-3" />
@@ -611,14 +674,22 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                                 </span>
                             </div>
                             
-                            {/* Download Button (Only if Edited) */}
-                            {resultSrc && (
-                                <div className="absolute top-4 right-4 z-20">
-                                    <a href={resultSrc} download="generative_fill_result.jpg" className="p-2 bg-white/10 hover:bg-blue-600 text-white rounded-lg backdrop-blur border border-white/20 transition-all flex items-center gap-2">
+                            {/* Top Right Controls: Download & Close */}
+                            <div className="absolute top-4 right-4 z-30 flex gap-2">
+                                {resultSrc && (
+                                    <a href={resultSrc} download="generative_fill_result.jpg" className="p-2 bg-white/10 hover:bg-blue-600 text-white rounded-lg backdrop-blur border border-white/20 transition-all flex items-center gap-2" title="Tải về">
                                         <ArrowDownTrayIcon className="w-5 h-5" />
                                     </a>
-                                </div>
-                            )}
+                                )}
+                                {/* NEW: Close Button */}
+                                <button 
+                                    onClick={handleCloseImage}
+                                    className="p-2 bg-black/60 hover:bg-red-600 text-white rounded-lg backdrop-blur border border-white/20 transition-all shadow-lg group"
+                                    title="Đóng / Chọn ảnh khác"
+                                >
+                                    <XMarkIcon className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
