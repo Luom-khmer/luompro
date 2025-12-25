@@ -19,6 +19,7 @@ import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
 import LandingPage from './components/LandingPage';
 import RestorationStudio from './components/RestorationStudio';
+import GenerativeFillStudio from './components/GenerativeFillStudio'; // New Import
 
 import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -549,7 +550,12 @@ const App: React.FC = () => {
 
              <div className="flex flex-col items-center text-center w-1/3">
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-white whitespace-nowrap">LUOM PRO <span className="text-red-600">TOOL AI</span></h1>
-                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">{currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 'CHẾ ĐỘ XỬ LÝ')}</p>
+                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
+                    {currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : 
+                     (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 
+                     (currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 
+                     (currentView === 'generative-fill' ? 'GENERATIVE FILL' : 'CHẾ ĐỘ XỬ LÝ')))}
+                </p>
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
@@ -596,6 +602,14 @@ const App: React.FC = () => {
                 <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
             ) : currentView === 'restoration' ? (
                 <RestorationStudio 
+                    apiKey={globalApiKey}
+                    gommoApiKey={globalGommoKey}
+                    userCredits={userCredits}
+                    currentUser={currentUser}
+                    onUpdateCredits={updateGommoCredits}
+                />
+            ) : currentView === 'generative-fill' ? (
+                <GenerativeFillStudio 
                     apiKey={globalApiKey}
                     gommoApiKey={globalGommoKey}
                     userCredits={userCredits}

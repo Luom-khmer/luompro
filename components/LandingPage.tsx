@@ -17,6 +17,14 @@ interface LandingPageProps {
 
 const TOOLS = [
   {
+    id: 'generative-fill',
+    title: 'GENERATIVE FILL',
+    description: 'Xóa vật thể & mở rộng ảnh',
+    icon: PaintBrushIcon,
+    color: 'blue',
+    mode: 'generative-fill'
+  },
+  {
     id: 'clothing',
     title: 'THAY TRANG PHỤC',
     description: 'Ghép trang phục tham chiếu',
@@ -44,7 +52,7 @@ const TOOLS = [
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
-  const [activeIndex, setActiveIndex] = useState(1); // Mặc định chọn Hack Concept Pro (index 1)
+  const [activeIndex, setActiveIndex] = useState(2); // Mặc định chọn Hack Concept Pro (index 2 now)
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % TOOLS.length);
@@ -67,6 +75,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         onNavigate('hack-concept');
     } else if (tool.id === 'restoration') {
         onNavigate('restoration');
+    } else if (tool.id === 'generative-fill') {
+        onNavigate('generative-fill');
     } else if (tool.id === 'clothing' || tool.id === 'painting') {
         // Tạm thời chuyển vào Concept
         onNavigate('concept'); 
