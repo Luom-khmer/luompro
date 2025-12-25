@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { ViewMode } from '../types';
 import { 
@@ -40,7 +39,7 @@ const TOOLS = [
     description: 'Khôi phục màu & chi tiết',
     icon: ClockIcon,
     color: 'green',
-    mode: 'concept'
+    mode: 'restoration'
   }
 ];
 
@@ -66,7 +65,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         onNavigate('concept');
     } else if (tool.id === 'hack-concept-pro') {
         onNavigate('hack-concept');
-    } else if (tool.id === 'clothing' || tool.id === 'painting' || tool.id === 'restoration') {
+    } else if (tool.id === 'restoration') {
+        onNavigate('restoration');
+    } else if (tool.id === 'clothing' || tool.id === 'painting') {
         // Tạm thời chuyển vào Concept
         onNavigate('concept'); 
     } else {

@@ -1,5 +1,3 @@
-
-
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -19,7 +17,8 @@ import Lightbox from './components/Lightbox';
 import ConfirmationModal from './components/ConfirmationModal';
 import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
-import LandingPage from './components/LandingPage'; 
+import LandingPage from './components/LandingPage';
+import RestorationStudio from './components/RestorationStudio';
 
 import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -550,7 +549,7 @@ const App: React.FC = () => {
 
              <div className="flex flex-col items-center text-center w-1/3">
                 <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-white whitespace-nowrap">LUOM PRO <span className="text-red-600">TOOL AI</span></h1>
-                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">{currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 'CHẾ ĐỘ XỬ LÝ')}</p>
+                <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">{currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 'CHẾ ĐỘ XỬ LÝ')}</p>
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
@@ -595,6 +594,14 @@ const App: React.FC = () => {
                 <LandingPage onNavigate={setCurrentView} />
             ) : currentView === 'admin' ? (
                 <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
+            ) : currentView === 'restoration' ? (
+                <RestorationStudio 
+                    apiKey={globalApiKey}
+                    gommoApiKey={globalGommoKey}
+                    userCredits={userCredits}
+                    currentUser={currentUser}
+                    onUpdateCredits={updateGommoCredits}
+                />
             ) : (
                 <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
                     <main className="flex-1 flex flex-col bg-[#0f1012] min-h-0">
