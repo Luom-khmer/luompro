@@ -11,8 +11,6 @@ import {
 } from '../types';
 import { APP_CONFIG } from '../config';
 
-// const DOMAIN = "aivideoauto.com"; // Removed in favor of ID
-
 // Logic chọn Base URL:
 // 1. Ưu tiên Cloudflare Worker (GOMMO_PROXY_URL) nếu có -> Bypass CORS & Timeout.
 // 2. Fallback về API gốc (sẽ bị CORS nếu chạy client-side).
@@ -39,8 +37,14 @@ const ENDPOINTS = {
 const createBody = (accessToken: string, params: Record<string, any>) => {
     const paramsObj = new URLSearchParams();
     
-    // Required fields - Token in body to avoid CORS Preflight issues with custom headers
-    paramsObj.append('access_token', accessToken);
+    // SECURITY UPDATE: 
+    // Nếu token là mã giả định "SECURE_PROXY_MODE", ta KHÔNG gửi nó trong body.
+    // Cloudflare Worker sẽ phát hiện việc thiếu token và tự động chèn Key thật (Secret) vào.
+    // Nếu token khác (VD: admin nhập key riêng), ta vẫn gửi đi bình thường.
+    if (accessToken && accessToken !== "SECURE_PROXY_MODE") {
+        paramsObj.append('access_token', accessToken);
+    }
+    
     // Replace domain with specific ID for hiding domain
     paramsObj.append('id', 'cd21047adf4f6f4e');
     
@@ -62,10 +66,19 @@ const createBody = (accessToken: string, params: Record<string, any>) => {
 const processResponse = async (response: Response) => {
     // Xử lý lỗi HTTP level
     if (!response.ok) {
-        // Xử lý lỗi 524 Timeout từ Cloudflare
+        // IMPROVED ERROR HANDLING
+        
+        // 1. Check Auth Errors (401/403)
+        if (response.status === 401 || response.status === 403) {
+             throw new Error("Lỗi Xác Thực (401): Token API không hợp lệ. Vui lòng kiểm tra lại biến 'GOMMO_SECRET_KEY' trong Cloudflare Worker.");
+        }
+
+        // 2. Check Timeout (524 from Cloudflare)
         if (response.status === 524) {
             throw new Error("Lỗi 524 (Timeout): Ảnh tải lên quá nặng hoặc Gommo phản hồi chậm. Vui lòng thử lại với ảnh nhỏ hơn hoặc thử lại sau.");
         }
+        
+        // 3. Check Rate Limit (429)
         if (response.status === 429) {
             throw new Error("Lỗi 429 (Too Many Requests): Hệ thống đang quá tải, vui lòng chờ vài phút.");
         }

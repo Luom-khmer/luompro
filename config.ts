@@ -8,11 +8,12 @@ export const APP_CONFIG = {
     // -> Video hướng dẫn: https://www.youtube.com/results?search_query=get+gemini+api+key
     GEMINI_API_KEY: "AIzaSyBmYVtAzKEO168mbZUEPZq0QWIoPSnnYAA", 
 
-    // 2. Gommo Access Token (Tùy chọn - Dùng cho chức năng nâng cao/video)
-    // -> Lấy tại: https://aivideoauto.com/pages/account/apikeys
-    GOMMO_API_KEY: "Jgfrhaf/dLPeJmdj7A4RgMJzk4TQakr1PmK14mFhC9FG7VM/I16+ZMvETX/TpokBlAjEO/sb2xNW5a09BG1UUnMOuL6lco2051HwUZY9lBTqvvgETPkQeO/ND5VHWUTgsXb6llG271cbgRhiZJMR1xUx8zm/TQYNs10RzCocpAOIiadIWhypWqBt8uWduO9rM6kWNxBiishkUf49ICR2cQ==",
+    // 2. Gommo Access Token (ĐÃ BẢO MẬT)
+    // Thay vì để Key thật ở đây, ta để một mã định danh. 
+    // Proxy Server (Cloudflare Worker) sẽ tự động thay thế mã này bằng Key thật.
+    GOMMO_API_KEY: "SECURE_PROXY_MODE",
     
-    // 3. Cloudflare Worker URL (BẮT BUỘC ĐỂ TRÁNH LỖI CORS & TIMEOUT)
+    // 3. Cloudflare Worker URL (BẮT BUỘC ĐỂ TRÁNH LỖI CORS & TIMEOUT & BẢO MẬT)
     // Thay thế bằng link Worker của bạn. VD: "https://my-proxy.user.workers.dev"
     // Link này giúp ẩn danh và giữ kết nối lâu hơn Vercel (giới hạn 10-60s).
     GOMMO_PROXY_URL: "https://red-unit-gommo-proxy.dluom4198.workers.dev", 
