@@ -620,6 +620,7 @@ const App: React.FC = () => {
                 />
             ) : currentView === 'creative-studio' ? (
                 <CreativeStudio 
+                    apiKey={globalApiKey}
                     gommoApiKey={globalGommoKey}
                     userCredits={userCredits}
                     currentUser={currentUser}

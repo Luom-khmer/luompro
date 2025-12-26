@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { GoogleGenAI } from "@google/genai";
 import { 
     SparklesIcon, 
     MagnifyingGlassPlusIcon, 
@@ -16,7 +17,8 @@ import {
     AdjustmentsHorizontalIcon,
     UserCircleIcon,
     PaintBrushIcon,
-    CubeIcon
+    CubeIcon,
+    DocumentTextIcon
 } from '@heroicons/react/24/outline';
 import { generateGommoImage, pollGommoImageCompletion, fetchGommoModels } from '../services/gommoService';
 import { resizeImage, fileToBase64 } from '../services/geminiService';
@@ -55,6 +57,7 @@ const getAspectRatio = (w: number, h: number): string => {
 };
 
 interface CreativeStudioProps {
+    apiKey: string;
     gommoApiKey: string;
     userCredits: number;
     currentUser: any;
@@ -70,10 +73,10 @@ interface ReferenceImage {
 }
 
 const CreativeStudio: React.FC<CreativeStudioProps> = ({ 
-    gommoApiKey, userCredits, currentUser, onUpdateCredits 
+    apiKey, gommoApiKey, userCredits, currentUser, onUpdateCredits 
 }) => {
     // --- Main Canvas State ---
-    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imageFile, setImageFile] = useState<File | null>(null); // Ảnh gốc (Bố cục)
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
     const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
     const [prompt, setPrompt] = useState('');
@@ -108,6 +111,11 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
     const [selectedMode, setSelectedMode] = useState('');
 
     const [isRefPanelExpanded, setIsRefPanelExpanded] = useState(false);
+    const [isAnalyzingPrompt, setIsAnalyzingPrompt] = useState(false);
+    
+    // --- Prompt Analysis State ---
+    const [analyzedPrompts, setAnalyzedPrompts] = useState<{ en: string, vi: string } | null>(null);
+    const [isPromptSelectionOpen, setIsPromptSelectionOpen] = useState(false);
 
     // --- INITIAL LOAD: FETCH MODELS ---
     useEffect(() => {
@@ -160,7 +168,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
     
     // Calculate Max Slots based on Model Capability
     const maxRefSlots = useMemo(() => {
-        return activeModel?.maxSubject || (activeModel?.withSubject ? 1 : 0);
+        return activeModel?.maxSubject || (activeModel?.withSubject ? 4 : 0); // Default to 4 if model supports subjects
     }, [activeModel]);
 
     // Derived Ratios and Modes
@@ -170,6 +178,10 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
 
     const activeModes = useMemo(() => {
         return activeModel?.modes || [];
+    }, [activeModel]);
+
+    const activeResolutions = useMemo(() => {
+        return activeModel?.resolutions || [];
     }, [activeModel]);
 
     // Update defaults when model changes
@@ -182,22 +194,43 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
             } else {
                 setSelectedMode('');
             }
+
+            // Sync Resolution
+            if (activeModel.resolutions && activeModel.resolutions.length > 0) {
+                if (!activeModel.resolutions.find(r => r.type === res)) {
+                    setRes(activeModel.resolutions[0].type);
+                }
+            } else {
+                // Keep default '1k' or reset if not available? 
+                // If the model has no explicit resolutions list, we assume it supports basic ones or defaults.
+            }
         }
     }, [activeModel]);
 
-    // Calculate Estimated Cost
+    // Calculate Estimated Cost (Improved Specificity)
     const estimatedCost = useMemo(() => {
         if (!activeModel) return 0;
         let price = activeModel.price || 150;
         
         // Dynamic price based on mode and resolution
         if (activeModel.prices && activeModel.prices.length > 0) {
-             const matched = activeModel.prices.find(p => {
+             // Find all candidates that match the current selection
+             const candidates = activeModel.prices.filter(p => {
                  const modeMatch = !p.mode || p.mode === selectedMode;
                  const resMatch = !p.resolution || p.resolution === res;
                  return modeMatch && resMatch;
              });
-             if (matched) price = matched.price;
+
+             if (candidates.length > 0) {
+                 // Sort candidates by specificity (number of defined properties)
+                 // This ensures specific rules (e.g. 4k resolution) override generic rules
+                 candidates.sort((a, b) => {
+                     const aSpec = (a.mode ? 1 : 0) + (a.resolution ? 1 : 0);
+                     const bSpec = (b.mode ? 1 : 0) + (b.resolution ? 1 : 0);
+                     return bSpec - aSpec; // Descending order (Most specific first)
+                 });
+                 price = candidates[0].price;
+             }
         }
 
         return price * qty;
@@ -292,6 +325,75 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
         setReferenceImages([]);
     };
 
+    const handlePromptImageAnalysis = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        if (!apiKey) {
+            alert("Vui lòng nhập Google API Key để sử dụng tính năng phân tích.");
+            return;
+        }
+
+        setIsAnalyzingPrompt(true);
+        try {
+            const base64Data = await resizeImage(file, 1024, 1024, 0.7);
+            const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+            
+            const ai = new GoogleGenAI({ apiKey: apiKey });
+            const promptInstruction = `
+                Analyze this image in detail and create two highly descriptive text prompts suitable for image generation AI (like Midjourney or Stable Diffusion). 
+                
+                1. English Version: Detailed, descriptive, focusing on subject, setting, lighting, style.
+                2. Vietnamese Version: Translate the English version to Vietnamese, ensuring it sounds natural and descriptive.
+
+                Return the response as a JSON object with keys "en" and "vi".
+                {
+                    "en": "English prompt...",
+                    "vi": "Vietnamese prompt..."
+                }
+            `;
+
+            const response = await ai.models.generateContent({
+                model: 'gemini-2.5-flash',
+                contents: {
+                    parts: [
+                        { inlineData: { mimeType, data: base64Data } },
+                        { text: promptInstruction }
+                    ]
+                },
+                config: {
+                    responseMimeType: "application/json"
+                }
+            });
+
+            if (response.text) {
+                const result = JSON.parse(response.text);
+                if (result.en && result.vi) {
+                    setAnalyzedPrompts({ en: result.en, vi: result.vi });
+                    setIsPromptSelectionOpen(true);
+                } else {
+                    // Fallback normal text
+                    setPrompt(response.text.trim());
+                }
+            }
+
+        } catch (error: any) {
+            console.error("Prompt Analysis Error", error);
+            alert("Lỗi khi phân tích ảnh: " + (error.message || "Unknown error"));
+        } finally {
+            setIsAnalyzingPrompt(false);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const selectPromptLanguage = (lang: 'en' | 'vi') => {
+        if (analyzedPrompts) {
+            setPrompt(analyzedPrompts[lang]);
+            setIsPromptSelectionOpen(false);
+            setAnalyzedPrompts(null);
+        }
+    };
+
     const handleGenerate = async () => {
         if (!prompt.trim()) return alert("Vui lòng nhập mô tả.");
         if (!currentUser) return alert("Vui lòng đăng nhập.");
@@ -304,14 +406,14 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
 
         setIsProcessing(true);
         try {
-            // 1. Process Main Image (Image-to-Image base)
+            // 1. Process Main Image (Image-to-Image base) - Nếu có ảnh gốc
             let fullBase64 = undefined;
             if (imageFile) {
                 const base64Data = await resizeImage(imageFile, 1536, 1536, 0.6);
                 fullBase64 = `data:${imageFile.type};base64,${base64Data}`;
             }
 
-            // 2. Process Reference Images (Subjects)
+            // 2. Process Reference Images (Subjects) - Xử lý danh sách ảnh mặt/style
             const subjectsPayload = await Promise.all(referenceImages.map(async (ref) => {
                 const refBase64 = await resizeImage(ref.file, 1024, 1024, 0.6);
                 return {
@@ -327,7 +429,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                 selectedModelId,
                 prompt,
                 {
-                    editImage: !!imageFile, // True if Img2Img
+                    editImage: !!imageFile, // True nếu có ảnh gốc (Img2Img), False nếu chỉ có Prompt + Ref (Txt2Img)
                     base64Image: fullBase64,
                     resolution: res,
                     ratio: selectedRatio,
@@ -385,8 +487,80 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                 onClose={() => { setIsCropperOpen(false); setPendingRefFile(null); }}
                 imageFile={pendingRefFile}
                 onSave={handleCropSave}
-                instruction="Hãy cắt ảnh rõ mặt của bạn"
+                instruction="Cắt lấy khuôn mặt hoặc chủ thể cần tham chiếu"
             />
+
+            {/* Prompt Selection Modal */}
+            {isPromptSelectionOpen && analyzedPrompts && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+                    <div className="bg-[#1e1e1e] border border-gray-700 rounded-2xl shadow-2xl max-w-md w-full overflow-hidden">
+                        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                                <SparklesIcon className="w-6 h-6 text-yellow-500" />
+                                Kết quả phân tích
+                            </h3>
+                            <button onClick={() => setIsPromptSelectionOpen(false)} className="text-gray-400 hover:text-white">
+                                <XMarkIcon className="w-6 h-6" />
+                            </button>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-gray-300 mb-6 text-sm">AI đã tạo ra 2 phiên bản prompt. Bạn muốn sử dụng phiên bản nào?</p>
+                            <div className="grid gap-4">
+                                <button 
+                                    onClick={() => selectPromptLanguage('vi')}
+                                    className="group text-left p-4 rounded-xl border border-gray-700 bg-[#252525] hover:bg-green-900/20 hover:border-green-500 transition-all"
+                                >
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-white group-hover:text-green-300">Tiếng Việt (Vietnamese)</span>
+                                        <div className="w-6 h-6 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/50">
+                                            <span className="text-[10px] font-bold text-green-400">VN</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-1 italic">
+                                        "{analyzedPrompts.vi}"
+                                    </p>
+                                </button>
+
+                                <button 
+                                    onClick={() => selectPromptLanguage('en')}
+                                    className="group text-left p-4 rounded-xl border border-gray-700 bg-[#252525] hover:bg-blue-900/20 hover:border-blue-500 transition-all"
+                                >
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-bold text-white group-hover:text-blue-300">Tiếng Anh (English)</span>
+                                        <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center border border-blue-500/50">
+                                            <span className="text-[10px] font-bold text-blue-400">EN</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-xs text-gray-400 line-clamp-2 mt-1 italic">
+                                        "{analyzedPrompts.en}"
+                                    </p>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Top Left: Prompt Analysis Button */}
+            <div className="absolute top-6 left-6 z-30 animate-fade-in">
+                <label className={`flex items-center gap-2 px-4 py-2 bg-[#1a1a1a]/90 backdrop-blur border border-gray-700 hover:border-blue-500 rounded-full cursor-pointer transition-all shadow-lg hover:shadow-blue-900/20 group ${isAnalyzingPrompt ? 'opacity-70 pointer-events-none' : ''}`}>
+                    {isAnalyzingPrompt ? (
+                        <ArrowPathIcon className="w-5 h-5 text-blue-400 animate-spin" />
+                    ) : (
+                        <DocumentTextIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
+                    )}
+                    <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">
+                        {isAnalyzingPrompt ? "Đang phân tích..." : "Lấy prompt ảnh muốn tạo theo"}
+                    </span>
+                    <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={handlePromptImageAnalysis} 
+                        disabled={isAnalyzingPrompt}
+                    />
+                </label>
+            </div>
 
             {/* Top Overlay Controls */}
             {activeImage && (
@@ -483,9 +657,9 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                     <div className="relative bg-[#0f1012] rounded-2xl p-4 flex gap-4 shadow-2xl border border-gray-800/80 backdrop-blur-xl">
                         
                         {/* SECTION 0: ORIGINAL IMAGE (Fixed 1 Slot) */}
-                        <div className="flex flex-col gap-2 border-r border-gray-800 pr-4 mr-2">
+                        <div className={`flex flex-col gap-2 border-r border-gray-800 pr-4 mr-2 ${referenceImages.length > 0 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                             <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap px-1 mb-1">
-                                <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3"/> Ảnh gốc</span>
+                                <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3"/> Ảnh gốc (Bố cục)</span>
                             </div>
                             
                             <div className="flex gap-2 items-center h-full">
@@ -511,24 +685,28 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                 ) : (
                                     <div 
                                         className="w-16 h-16 rounded-lg border border-dashed border-gray-700 hover:border-blue-500 bg-[#1a1a1a] flex flex-col items-center justify-center cursor-pointer transition-colors shrink-0 group/add"
-                                        onClick={() => document.getElementById('main-upload')?.click()}
+                                        onClick={() => {
+                                            if (referenceImages.length === 0) {
+                                                document.getElementById('main-upload')?.click();
+                                            }
+                                        }}
                                     >
                                         <PlusIcon className="w-5 h-5 text-gray-500 group-hover/add:text-blue-500" />
                                         <span className="text-[9px] text-gray-600 font-bold mt-1">THÊM</span>
                                     </div>
                                 )}
-                                <input id="main-upload" type="file" className="hidden" onChange={handleMainFileUpload} accept="image/*" />
+                                <input id="main-upload" type="file" className="hidden" onChange={handleMainFileUpload} accept="image/*" disabled={referenceImages.length > 0} />
                             </div>
                         </div>
 
                         {/* SECTION 1: REFERENCE INPUTS (Dynamic Slots) */}
                         <div 
-                            className={`flex flex-col gap-2 transition-all duration-500 ease-out overflow-hidden border-r border-gray-800 pr-4 mr-2 ${isHovered || isRefPanelExpanded || referenceImages.length > 0 ? 'w-auto min-w-[120px] max-w-[400px] opacity-100' : 'w-12 opacity-80'}`}
+                            className={`flex flex-col gap-2 transition-all duration-500 ease-out overflow-hidden border-r border-gray-800 pr-4 mr-2 ${isHovered || isRefPanelExpanded || referenceImages.length > 0 ? 'w-auto min-w-[120px] max-w-[400px] opacity-100' : 'w-12 opacity-80'} ${imageFile ? 'opacity-50 pointer-events-none grayscale' : ''}`}
                             onMouseEnter={() => setIsRefPanelExpanded(true)}
                             onMouseLeave={() => setIsRefPanelExpanded(false)}
                         >
                             <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap px-1 mb-1">
-                                <span className="flex items-center gap-1"><Square2StackIcon className="w-3 h-3"/> Tham chiếu</span>
+                                <span className="flex items-center gap-1"><Square2StackIcon className="w-3 h-3"/> Ghép nhiều ảnh</span>
                                 <span>{referenceImages.length}/{maxRefSlots}</span>
                             </div>
                             
@@ -567,9 +745,9 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                                         onChange={(e) => updateReferenceImage(ref.id, { type: e.target.value as any })}
                                                         className="w-full bg-black border border-gray-700 text-white text-xs rounded px-1 py-1"
                                                     >
+                                                        <option value="face">Face ID (Lấy mặt)</option>
+                                                        <option value="style">Style (Phong cách)</option>
                                                         <option value="image">Image (Chung)</option>
-                                                        {activeModel?.withFace && <option value="face">Face ID (Khuôn mặt)</option>}
-                                                        {activeModel?.withStyle && <option value="style">Style (Phong cách)</option>}
                                                         <option value="structure">Structure (Cấu trúc)</option>
                                                     </select>
                                                 </div>
@@ -596,13 +774,15 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                 {referenceImages.length < maxRefSlots && (
                                     <div 
                                         className="w-16 h-16 rounded-lg border border-dashed border-gray-700 hover:border-blue-500 bg-[#1a1a1a] flex flex-col items-center justify-center cursor-pointer transition-colors shrink-0 group/add"
-                                        onClick={() => document.getElementById('ref-upload')?.click()}
+                                        onClick={() => {
+                                            if (!imageFile) document.getElementById('ref-upload')?.click();
+                                        }}
                                     >
                                         <PlusIcon className="w-5 h-5 text-gray-500 group-hover/add:text-blue-500" />
                                         <span className="text-[9px] text-gray-600 font-bold mt-1">THÊM</span>
                                     </div>
                                 )}
-                                <input id="ref-upload" type="file" className="hidden" onChange={handleReferenceUpload} accept="image/*" />
+                                <input id="ref-upload" type="file" className="hidden" onChange={handleReferenceUpload} accept="image/*" disabled={!!imageFile} />
                             </div>
                         </div>
 
@@ -610,16 +790,20 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                         <div className="flex-1 flex flex-col gap-3 justify-center min-w-0">
                             
                             {/* Input Row */}
-                            <div className="h-10 w-full flex items-center relative">
-                                <input 
-                                    type="text" 
+                            <div className="w-full relative">
+                                <textarea 
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="Mô tả prompt"
-                                    className="w-full bg-[#151515] border border-gray-800 hover:border-gray-700 focus:border-blue-600 rounded-xl px-4 text-gray-200 text-sm font-medium outline-none placeholder-gray-600 h-12 transition-all"
-                                    onKeyDown={(e) => e.key === 'Enter' && handleGenerate()}
+                                    placeholder="Mô tả prompt (VD: Hai người đứng khoác vai nhau trên phố)..."
+                                    className="w-full bg-[#151515] border border-gray-800 hover:border-gray-700 focus:border-blue-600 rounded-xl px-4 py-3 text-gray-200 text-sm font-medium outline-none placeholder-gray-600 min-h-[48px] max-h-[120px] transition-all resize-none custom-scrollbar"
+                                    onKeyDown={(e) => {
+                                        if(e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleGenerate();
+                                        }
+                                    }}
                                 />
-                                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                                <div className="absolute right-3 bottom-3 flex items-center gap-2 pointer-events-none">
                                      <span className="text-[10px] text-gray-600 font-bold uppercase bg-gray-800 px-1.5 py-0.5 rounded">Enter</span>
                                 </div>
                             </div>
@@ -689,28 +873,21 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
 
                                 {/* Resolution Segment */}
                                 <div className="flex bg-[#1a1a1a] rounded-lg border border-gray-700 p-0.5">
-                                    {['1k', '2k', '4k'].map((r) => (
+                                    {(activeResolutions.length > 0 ? activeResolutions : [{type: '1k', name: '1k'}, {type: '2k', name: '2k'}, {type: '4k', name: '4k'}]).map((r) => (
                                         <button 
-                                            key={r}
-                                            onClick={() => setRes(r)}
-                                            className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${res === r ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                                            key={r.type}
+                                            onClick={() => setRes(r.type)}
+                                            className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${res === r.type ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
                                         >
-                                            {r}
+                                            {r.name.toUpperCase()}
                                         </button>
                                     ))}
                                 </div>
 
                                 {/* Cost Display */}
-                                <div className="flex items-center gap-1 text-yellow-500 font-bold text-xs px-2 whitespace-nowrap bg-yellow-900/10 rounded border border-yellow-500/20 py-1">
+                                <div className="flex items-center gap-1 text-yellow-500 font-bold text-xs px-2 whitespace-nowrap bg-yellow-900/10 rounded border border-yellow-500/20 py-1 ml-auto">
                                     <span>{estimatedCost}</span>
                                     <BoltIcon className="w-3 h-3" />
-                                </div>
-
-                                {/* Quantity Stepper */}
-                                <div className="flex items-center bg-[#1a1a1a] rounded-lg border border-gray-700 ml-auto">
-                                    <button onClick={() => setQty(Math.max(1, qty - 1))} className="px-2 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-l-lg transition-colors"><MinusIcon className="w-3 h-3" /></button>
-                                    <span className="px-2 text-xs font-bold text-gray-300 min-w-[20px] text-center">{qty}</span>
-                                    <button onClick={() => setQty(Math.min(10, qty + 1))} className="px-2 py-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded-r-lg transition-colors"><PlusIcon className="w-3 h-3" /></button>
                                 </div>
 
                             </div>
