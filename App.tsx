@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { generateStyledImage, resizeImage } from './services/geminiService';
 import { uploadGommoImage, generateGommoImage, pollGommoImageCompletion, fetchGommoImages, fetchGommoUserInfo, fetchGommoModels, upscaleGommoImage } from './services/gommoService';
@@ -125,8 +126,17 @@ const App: React.FC = () => {
       const savedKey = localStorage.getItem('gemini_api_key');
       if (savedKey) setGlobalApiKey(savedKey);
       
-      const savedGommoKey = localStorage.getItem('gommo_api_key');
-      if (savedGommoKey) setGlobalGommoKey(savedGommoKey);
+      // LOGIC FIX: Ưu tiên Config Mode hơn LocalStorage cũ
+      if (APP_CONFIG.GOMMO_API_KEY === "SECURE_PROXY_MODE") {
+          setGlobalGommoKey("SECURE_PROXY_MODE");
+          // Xóa key thật trong local storage nếu có để tránh lộ
+          localStorage.removeItem('gommo_api_key'); 
+      } else {
+          // Chỉ lấy từ localStorage nếu không dùng Secure Mode
+          const savedGommoKey = localStorage.getItem('gommo_api_key');
+          if (savedGommoKey) setGlobalGommoKey(savedGommoKey);
+      }
+
     } catch (e) { console.error("Key load error", e); }
 
     const loadGallery = async () => {
@@ -164,7 +174,11 @@ const App: React.FC = () => {
   useEffect(() => {
       if (globalApiKey) localStorage.setItem('gemini_api_key', globalApiKey);
       if (globalGommoKey) {
-          localStorage.setItem('gommo_api_key', globalGommoKey);
+          // Chỉ lưu vào localStorage nếu KHÔNG PHẢI là Secure Mode
+          if (globalGommoKey !== "SECURE_PROXY_MODE") {
+              localStorage.setItem('gommo_api_key', globalGommoKey);
+          }
+          
           updateGommoCredits();
           fetchModelsForPricing();
           const interval = setInterval(() => {
@@ -175,7 +189,8 @@ const App: React.FC = () => {
   }, [globalApiKey, globalGommoKey]);
 
   const updateGommoCredits = async (silent = false) => {
-      if (!globalGommoKey || globalGommoKey.length < 10) return;
+      // Cho phép check credit kể cả khi dùng SECURE_PROXY_MODE
+      if (!globalGommoKey || globalGommoKey.length < 5) return;
       if (!silent) setIsUpdatingCredits(true);
       try {
           const data = await fetchGommoUserInfo(globalGommoKey);
