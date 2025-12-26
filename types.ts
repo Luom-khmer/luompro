@@ -100,7 +100,7 @@ export interface StoredImage {
     timestamp: number;
 }
 
-export type ViewMode = 'home' | 'concept' | 'hack-concept' | 'restoration' | 'generative-fill' | 'voice' | 'profile' | 'clothing' | 'painting' | 'admin';
+export type ViewMode = 'home' | 'concept' | 'hack-concept' | 'restoration' | 'generative-fill' | 'creative-studio' | 'voice' | 'profile' | 'clothing' | 'painting' | 'admin';
 
 export interface ProcessedImage {
   id: string;

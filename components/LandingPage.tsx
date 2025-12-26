@@ -8,7 +8,8 @@ import {
     SpeakerWaveIcon,
     ChevronRightIcon,
     ChevronLeftIcon,
-    BoltIcon // NEW IMPORT
+    BoltIcon,
+    PuzzlePieceIcon
 } from '@heroicons/react/24/outline';
 
 interface LandingPageProps {
@@ -25,21 +26,21 @@ const TOOLS = [
     mode: 'generative-fill'
   },
   {
-    id: 'clothing',
-    title: 'THAY TRANG PHỤC',
-    description: 'Ghép trang phục tham chiếu',
-    icon: ShoppingBagIcon,
-    color: 'purple',
-    mode: 'concept'
-  },
-  {
-    id: 'hack-concept-pro', // NEW ITEM
+    id: 'hack-concept-pro',
     title: 'HACK CONCEPT PRO',
     description: 'Hack nền, ánh sáng & góc máy',
     icon: BoltIcon,
     color: 'purple',
     isHighlight: true,
     mode: 'hack-concept'
+  },
+  {
+    id: 'creative-studio',
+    title: 'GHÉP ẢNH SÁNG TẠO',
+    description: 'Biến đổi chi tiết ảnh bằng AI',
+    icon: PuzzlePieceIcon,
+    color: 'pink',
+    mode: 'creative-studio'
   },
   {
     id: 'restoration',
@@ -52,7 +53,7 @@ const TOOLS = [
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
-  const [activeIndex, setActiveIndex] = useState(2); // Mặc định chọn Hack Concept Pro (index 2 now)
+  const [activeIndex, setActiveIndex] = useState(1); // Mặc định chọn Hack Concept Pro
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % TOOLS.length);
@@ -68,7 +69,6 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
   const handleEnter = () => {
     const tool = TOOLS[activeIndex];
-    // Chuyển hướng dựa trên tool
     if (tool.id === 'fake-concept') {
         onNavigate('concept');
     } else if (tool.id === 'hack-concept-pro') {
@@ -77,8 +77,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         onNavigate('restoration');
     } else if (tool.id === 'generative-fill') {
         onNavigate('generative-fill');
+    } else if (tool.id === 'creative-studio') {
+        onNavigate('creative-studio');
     } else if (tool.id === 'clothing' || tool.id === 'painting') {
-        // Tạm thời chuyển vào Concept
         onNavigate('concept'); 
     } else {
         onNavigate(tool.mode as ViewMode);
@@ -119,12 +120,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         <div className="flex items-center justify-start md:justify-center gap-4 perspective-1000 w-full overflow-x-auto md:overflow-visible py-10 px-[calc(50%-110px)] md:px-0 no-scrollbar snap-x snap-mandatory h-full">
             {TOOLS.map((tool, index) => {
                 const isActive = index === activeIndex;
-                const isNeighbor = Math.abs(index - activeIndex) === 1;
                 
                 // Styles calculation
                 let containerClass = "relative flex-shrink-0 transition-all duration-500 ease-out cursor-pointer snap-center ";
                 let cardClass = "w-[220px] h-[320px] rounded-2xl border flex flex-col items-center justify-center p-6 transition-all duration-500 ";
-                let glowClass = "";
                 let iconClass = "w-12 h-12 mb-4 transition-all duration-500 ";
 
                 if (isActive) {
@@ -133,6 +132,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                     if (tool.isHighlight) {
                          cardClass += "bg-[#0f1215] border-cyan-500 shadow-[0_0_30px_rgba(6,182,212,0.4)]";
                          iconClass += "text-cyan-400 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)] stroke-[1.5px]";
+                    } else if (tool.color === 'pink') {
+                         cardClass += "bg-[#141414] border-pink-500 shadow-[0_0_20px_rgba(236,72,153,0.3)]";
+                         iconClass += "text-pink-400 stroke-[1.5px]";
                     } else {
                          cardClass += "bg-[#141414] border-gray-500 shadow-[0_0_20px_rgba(255,255,255,0.1)]";
                          iconClass += "text-white stroke-[1.5px]";

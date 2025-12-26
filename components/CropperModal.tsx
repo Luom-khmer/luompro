@@ -1,15 +1,15 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { XMarkIcon, CheckIcon, ArrowPathIcon, ArrowsPointingOutIcon, ScissorsIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, CheckIcon, ArrowPathIcon, ArrowsPointingOutIcon, ScissorsIcon, InformationCircleIcon } from '@heroicons/react/24/outline';
 
 interface CropperModalProps {
     isOpen: boolean;
     onClose: () => void;
     imageFile: File | null;
     onSave: (croppedFile: File, previewUrl: string) => void;
+    instruction?: string; // Added instruction prop
 }
 
-const CropperModal: React.FC<CropperModalProps> = ({ isOpen, onClose, imageFile, onSave }) => {
+const CropperModal: React.FC<CropperModalProps> = ({ isOpen, onClose, imageFile, onSave, instruction }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [image, setImage] = useState<HTMLImageElement | null>(null);
@@ -210,12 +210,21 @@ const CropperModal: React.FC<CropperModalProps> = ({ isOpen, onClose, imageFile,
             <div className="relative bg-[#1e1e1e] border border-gray-700 rounded-xl p-4 w-full max-w-4xl h-[90vh] flex flex-col gap-4">
                  
                  {/* Header */}
-                 <div className="flex justify-between items-center border-b border-gray-700 pb-2">
-                    <h3 className="text-white font-bold text-lg flex items-center gap-2">
-                        <ScissorsIcon className="w-5 h-5" />
-                        Cắt & Xoay 360°
-                    </h3>
-                    <button onClick={onClose}><XMarkIcon className="w-6 h-6 text-gray-400 hover:text-white" /></button>
+                 <div className="flex flex-col gap-2 border-b border-gray-700 pb-2">
+                     <div className="flex justify-between items-center">
+                        <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                            <ScissorsIcon className="w-5 h-5" />
+                            Cắt & Xoay 360°
+                        </h3>
+                        <button onClick={onClose}><XMarkIcon className="w-6 h-6 text-gray-400 hover:text-white" /></button>
+                     </div>
+                     {/* Instruction Banner */}
+                     {instruction && (
+                         <div className="flex items-center gap-2 bg-yellow-900/30 text-yellow-500 px-3 py-1.5 rounded text-xs font-bold border border-yellow-500/30">
+                             <InformationCircleIcon className="w-4 h-4" />
+                             <span>{instruction}</span>
+                         </div>
+                     )}
                  </div>
                  
                  {/* Main Canvas Area */}

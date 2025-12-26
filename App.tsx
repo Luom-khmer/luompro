@@ -19,7 +19,8 @@ import AdminPanel from './components/AdminPanel';
 import SystemNotificationModal from './components/SystemNotificationModal';
 import LandingPage from './components/LandingPage';
 import RestorationStudio from './components/RestorationStudio';
-import GenerativeFillStudio from './components/GenerativeFillStudio'; // New Import
+import GenerativeFillStudio from './components/GenerativeFillStudio';
+import CreativeStudio from './components/CreativeStudio'; // Import mới
 
 import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
@@ -554,7 +555,8 @@ const App: React.FC = () => {
                     {currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : 
                      (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 
                      (currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 
-                     (currentView === 'generative-fill' ? 'GENERATIVE FILL' : 'CHẾ ĐỘ XỬ LÝ')))}
+                     (currentView === 'creative-studio' ? 'GHÉP ẢNH SÁNG TẠO' :
+                     (currentView === 'generative-fill' ? 'GENERATIVE FILL' : 'CHẾ ĐỘ XỬ LÝ'))))}
                 </p>
              </div>
 
@@ -611,6 +613,13 @@ const App: React.FC = () => {
             ) : currentView === 'generative-fill' ? (
                 <GenerativeFillStudio 
                     apiKey={globalApiKey}
+                    gommoApiKey={globalGommoKey}
+                    userCredits={userCredits}
+                    currentUser={currentUser}
+                    onUpdateCredits={updateGommoCredits}
+                />
+            ) : currentView === 'creative-studio' ? (
+                <CreativeStudio 
                     gommoApiKey={globalGommoKey}
                     userCredits={userCredits}
                     currentUser={currentUser}
