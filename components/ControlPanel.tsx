@@ -500,11 +500,24 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
               referenceImagePreview: null 
           });
       } else {
-          // Option 2: Keep Image
+          // Option 2: Keep Image AND Inject Specific Prompt
           const previewUrl = URL.createObjectURL(pendingReferenceFile!);
+          
+          const strictPrompt = `Image 1 is the original. ABSOLUTE SUBJECT LOCK — do not change the subject in any way.
+FACE LOCK: Preserve 100% of the original face details and identity exactly as Image 1.
+POSE LOCK: Keep the exact same pose as Image 1.
+OUTFIT LOCK: Keep the exact same clothing as Image 1, no changes.
+COMPOSITION LOCK: Keep the subject’s position and size exactly the same as Image 1 (no reframing, no crop shift).
+FOCAL/DOF LOCK: Keep the exact same depth of field and focus look as Image 1 (same blur level and falloff).
+ASPECT RATIO LOCK: Keep the same aspect ratio as the input image.
+BACKGROUND ONLY: Replace only the background using Image 2, and the background must match 1:1 (same layout, object positions, colors, key details). You may scale/pan/tilt/roll + adjust perspective of the BACKGROUND ONLY to match Image 1’s camera height, horizon line, and viewpoint.
+Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
+
           onSettingsChange({
               referenceImage: pendingReferenceFile,
-              referenceImagePreview: previewUrl
+              referenceImagePreview: previewUrl,
+              userPrompt: strictPrompt,
+              hackPrompts: undefined // Clear hack prompts to hide the tab switcher
           });
       }
       setPendingReferenceFile(null);
