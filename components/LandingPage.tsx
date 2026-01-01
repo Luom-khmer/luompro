@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ViewMode } from '../types';
 import { 
@@ -27,7 +28,7 @@ const TOOLS = [
   },
   {
     id: 'hack-concept-pro',
-    title: 'HACK CONCEPT PRO',
+    title: 'Thay nền',
     description: 'Hack nền, ánh sáng & góc máy',
     icon: BoltIcon,
     color: 'purple',

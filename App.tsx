@@ -565,10 +565,17 @@ const App: React.FC = () => {
              </div>
 
              <div className="flex flex-col items-center text-center w-1/3">
-                <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-white whitespace-nowrap">LUOM PRO <span className="text-red-600">TOOL AI</span></h1>
+                <h1 className="text-xl md:text-2xl font-extrabold tracking-tighter text-yellow-400 whitespace-nowrap flex items-center gap-2 drop-shadow-md">
+                    {/* Banana Logo */}
+                    <svg viewBox="0 0 24 24" fill="currentColor" className="w-8 h-8 text-yellow-400 drop-shadow-sm">
+                        <path d="M12.75 3.03c-2.73 2.13-4.5 5.25-4.5 9.72 0 5.25 3.75 9 8.25 9 3.2 0 6.05-2.05 7.5-5.25.38-.85.83-1.63 1.35-2.34.18-.25-.05-.58-.33-.53A17.9 17.9 0 0 0 17.25 15c-3.1 0-5.25-2.25-5.25-5.25 0-2.4 1.35-4.3 3.3-5.5.25-.15.2-.55-.1-.65-1.05-.35-1.95-.57-2.45-.57z" />
+                        <path d="M7.5 12.75c0-4.47 1.77-7.59 4.5-9.72 0 0-3-3-9 3-2 2-3 5.25-3 9.75 0 5.25 3.75 9 8.25 9 0 0 2.25-3 2.25-7.5 0-1.85-.35-3.35-1-4.53z" opacity="0.5"/>
+                    </svg>
+                    <span>CHUỐI <span className="text-white">AI</span></span>
+                </h1>
                 <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
                     {currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : 
-                     (currentView === 'hack-concept' ? 'HACK CONCEPT PRO' : 
+                     (currentView === 'hack-concept' ? 'Thay nền' : 
                      (currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 
                      (currentView === 'creative-studio' ? 'GHÉP ẢNH SÁNG TẠO' :
                      (currentView === 'generative-fill' ? 'GENERATIVE FILL' : 'CHẾ ĐỘ XỬ LÝ'))))}
@@ -650,7 +657,7 @@ const App: React.FC = () => {
                                     <label className={`group relative w-full max-w-3xl h-48 border border-dashed rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl overflow-hidden ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] hover:shadow-sky-500/10'}`} onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }} onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}>
                                         <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                         <div className="relative w-16 h-16 rounded-full bg-[#222] group-hover:bg-sky-500/20 border border-gray-700 group-hover:border-sky-500 flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg"><PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-sky-400 transition-colors" /></div>
-                                        <div className="relative flex flex-col items-start z-10"><span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">Thêm ảnh {currentView === 'hack-concept' ? 'Hack Concept' : 'Concept'}</span><span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2"><PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP (Kéo thả vào đây)</span></div>
+                                        <div className="relative flex flex-col items-start z-10"><span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">Thêm ảnh {currentView === 'hack-concept' ? 'Thay nền' : 'Concept'}</span><span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2"><PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP (Kéo thả vào đây)</span></div>
                                         <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
                                     </label>
                                 </div>

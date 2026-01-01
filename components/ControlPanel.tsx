@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon, BanknotesIcon, ClockIcon } from '@heroicons/react/24/outline';
@@ -411,6 +410,19 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   };
 
   const handleBlurCommit = () => {};
+
+  // New handler for Blur Toggle
+  const handleBlurToggle = () => {
+      const isEnabled = (settings.userPrompt || "").includes("ĐỘ MỜ:");
+      if (isEnabled) {
+          // Turn OFF
+          const lines = (settings.userPrompt || "").split('\n').filter(line => !line.trim().startsWith("ĐỘ MỜ:"));
+          onSettingsChange({ userPrompt: lines.join('\n').trim() });
+      } else {
+          // Turn ON
+          handleBlurChange(settings.blurAmount);
+      }
+  };
 
   const handleOptionToggle = (key: keyof GenerationSettings, label: string) => {
       const currentValue = !!settings[key];
@@ -985,7 +997,10 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
     </div>
   );
 
-  const renderVisualEffects = () => (
+  const renderVisualEffects = () => {
+    const isBlurEnabled = (settings.userPrompt || "").includes("ĐỘ MỜ:");
+    
+    return (
     <div className="border border-blue-500/50 rounded-lg bg-[#1a1a1a]">
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsVisualEffectsOpen(!isVisualEffectsOpen)}>
             <h3 className="font-semibold text-gray-200 text-lg">Hiệu ứng hình ảnh</h3>
@@ -1005,16 +1020,27 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
                     </div>
                 </div>
                 <div className="pt-3 border-t border-gray-700">
-                    <div className="flex justify-between text-base text-gray-400 mb-2">
-                        <span>Độ mờ ống kính (Xóa phông)</span>
-                        <span className={`${settings.blurAmount <= 3.5 ? 'text-sky-400 font-bold' : ''}`}>f/{settings.blurAmount.toFixed(1)}</span>
+                    <div className="flex justify-between items-center text-base text-gray-400 mb-2">
+                        <div className="flex items-center gap-3">
+                            <span>Độ mờ ống kính (Xóa phông)</span>
+                            <div 
+                                onClick={handleBlurToggle}
+                                className={`w-9 h-5 rounded-full relative cursor-pointer transition-colors ${isBlurEnabled ? 'bg-sky-600' : 'bg-gray-600'}`}
+                            >
+                                <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isBlurEnabled ? 'left-5' : 'left-1'}`}></div>
+                            </div>
+                        </div>
+                        {isBlurEnabled && <span className={`${settings.blurAmount <= 3.5 ? 'text-sky-400 font-bold' : ''}`}>f/{settings.blurAmount.toFixed(1)}</span>}
                     </div>
-                    <input type="range" min="1.4" max="16.0" step="0.1" value={settings.blurAmount} onChange={(e) => handleBlurChange(parseFloat(e.target.value))} onMouseUp={handleBlurCommit} onTouchEnd={handleBlurCommit} className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-sky-500" />
+                    {isBlurEnabled && (
+                        <input type="range" min="1.4" max="16.0" step="0.1" value={settings.blurAmount} onChange={(e) => handleBlurChange(parseFloat(e.target.value))} onMouseUp={handleBlurCommit} onTouchEnd={handleBlurCommit} className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-sky-500" />
+                    )}
                 </div>
             </div>
         )}
     </div>
-  );
+    );
+  };
 
   const renderLightingEffects = () => (
     <div className="border border-orange-500/50 rounded-lg bg-[#1a1a1a]">
@@ -1211,7 +1237,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
         <div className="h-full bg-[#111] border-l border-gray-800 p-4 flex flex-col gap-4 overflow-y-auto text-lg custom-scrollbar">
             <div className="flex items-center justify-center py-4 border-b border-gray-800 mb-2">
                 <h2 className={`text-xl font-bold uppercase tracking-wide text-center ${viewMode === 'hack-concept' ? 'text-purple-500' : 'text-blue-500'}`}>
-                    {viewMode === 'hack-concept' ? 'HACK CONCEPT PRO' : 'FAKE CONCEPT'}
+                    {viewMode === 'hack-concept' ? 'Thay nền' : 'FAKE CONCEPT'}
                 </h2>
             </div>
 
