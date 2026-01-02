@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { 
@@ -25,6 +26,7 @@ import { resizeImage, fileToBase64 } from '../services/geminiService';
 import { deductUserCredits } from '../services/firebaseService';
 import { GommoModel } from '../types';
 import CropperModal from './CropperModal';
+import { TRANSLATIONS } from '../utils/translations';
 
 // --- HELPERS FOR METADATA ---
 const formatBytes = (bytes: number, decimals = 1) => {
@@ -62,6 +64,7 @@ interface CreativeStudioProps {
     userCredits: number;
     currentUser: any;
     onUpdateCredits: () => void;
+    language?: 'vi' | 'en' | 'km';
 }
 
 interface ReferenceImage {
@@ -73,7 +76,7 @@ interface ReferenceImage {
 }
 
 const CreativeStudio: React.FC<CreativeStudioProps> = ({ 
-    apiKey, gommoApiKey, userCredits, currentUser, onUpdateCredits 
+    apiKey, gommoApiKey, userCredits, currentUser, onUpdateCredits, language = 'vi'
 }) => {
     // --- Main Canvas State ---
     const [imageFile, setImageFile] = useState<File | null>(null); // Ảnh gốc (Bố cục)
@@ -116,6 +119,11 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
     // --- Prompt Analysis State ---
     const [analyzedPrompts, setAnalyzedPrompts] = useState<{ en: string, vi: string } | null>(null);
     const [isPromptSelectionOpen, setIsPromptSelectionOpen] = useState(false);
+
+    const t = (key: string) => {
+        // @ts-ignore
+        return TRANSLATIONS[language][key] || key;
+    };
 
     // --- INITIAL LOAD: FETCH MODELS ---
     useEffect(() => {
@@ -550,7 +558,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                         <DocumentTextIcon className="w-5 h-5 text-gray-400 group-hover:text-blue-400 transition-colors" />
                     )}
                     <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">
-                        {isAnalyzingPrompt ? "Đang phân tích..." : "Lấy prompt ảnh muốn tạo theo"}
+                        {isAnalyzingPrompt ? t('crt_analyzing') : t('crt_prompt_analysis')}
                     </span>
                     <input 
                         type="file" 
@@ -608,14 +616,14 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                              <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg backdrop-blur-[2px]">
                                  <div className="bg-black/80 px-6 py-3 rounded-full flex items-center gap-3 border border-gray-700 shadow-xl">
                                      <SparklesIcon className="w-5 h-5 text-purple-500 animate-spin" />
-                                     <span className="text-sm font-bold text-white tracking-wide">AI ĐANG VẼ...</span>
+                                     <span className="text-sm font-bold text-white tracking-wide">{t('crt_drawing')}</span>
                                  </div>
                              </div>
                         )}
                         {/* Label Badge */}
                         <div className="absolute bottom-4 left-4 pointer-events-none">
                             <span className="bg-black/60 backdrop-blur text-white text-[10px] font-bold px-2 py-1 rounded border border-white/10 uppercase">
-                                {generatedUrl ? "Kết quả" : "Ảnh gốc (Image2Image)"}
+                                {generatedUrl ? t('crt_result_badge') : t('crt_original_badge')}
                             </span>
                         </div>
 
@@ -634,8 +642,8 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                     <div className="text-center animate-fade-in pointer-events-none select-none opacity-50">
                         <div className="flex flex-col items-center justify-center w-64 h-64 border-2 border-dashed border-gray-800 rounded-2xl bg-[#0a0a0a]">
                             <SparklesIcon className="w-12 h-12 text-gray-700 mb-4" />
-                            <span className="text-sm text-gray-600 font-bold uppercase">KẾT QUẢ SẼ HIỆN Ở ĐÂY</span>
-                            <span className="text-[10px] text-gray-700 mt-2">Thêm tham chiếu bên dưới để bắt đầu</span>
+                            <span className="text-sm text-gray-600 font-bold uppercase">{t('crt_placeholder_title')}</span>
+                            <span className="text-[10px] text-gray-700 mt-2">{t('crt_placeholder_desc')}</span>
                         </div>
                     </div>
                 )}
@@ -659,7 +667,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                         {/* SECTION 0: ORIGINAL IMAGE (Fixed 1 Slot) */}
                         <div className={`flex flex-col gap-2 border-r border-gray-800 pr-4 mr-2 ${referenceImages.length > 0 ? 'opacity-50 pointer-events-none grayscale' : ''}`}>
                             <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap px-1 mb-1">
-                                <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3"/> Ảnh gốc (Bố cục)</span>
+                                <span className="flex items-center gap-1"><PhotoIcon className="w-3 h-3"/> {t('cp_opt_original')}</span>
                             </div>
                             
                             <div className="flex gap-2 items-center h-full">
@@ -692,7 +700,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                         }}
                                     >
                                         <PlusIcon className="w-5 h-5 text-gray-500 group-hover/add:text-blue-500" />
-                                        <span className="text-[9px] text-gray-600 font-bold mt-1">THÊM</span>
+                                        <span className="text-[9px] text-gray-600 font-bold mt-1">{t('crt_add')}</span>
                                     </div>
                                 )}
                                 <input id="main-upload" type="file" className="hidden" onChange={handleMainFileUpload} accept="image/*" disabled={referenceImages.length > 0} />
@@ -706,7 +714,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                             onMouseLeave={() => setIsRefPanelExpanded(false)}
                         >
                             <div className="flex justify-between items-center text-[10px] text-gray-500 font-bold uppercase whitespace-nowrap px-1 mb-1">
-                                <span className="flex items-center gap-1"><Square2StackIcon className="w-3 h-3"/> Ghép nhiều ảnh</span>
+                                <span className="flex items-center gap-1"><Square2StackIcon className="w-3 h-3"/> {t('crt_multi_ref')}</span>
                                 <span>{referenceImages.length}/{maxRefSlots}</span>
                             </div>
                             
@@ -779,7 +787,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                         }}
                                     >
                                         <PlusIcon className="w-5 h-5 text-gray-500 group-hover/add:text-blue-500" />
-                                        <span className="text-[9px] text-gray-600 font-bold mt-1">THÊM</span>
+                                        <span className="text-[9px] text-gray-600 font-bold mt-1">{t('crt_add')}</span>
                                     </div>
                                 )}
                                 <input id="ref-upload" type="file" className="hidden" onChange={handleReferenceUpload} accept="image/*" disabled={!!imageFile} />
@@ -794,7 +802,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                 <textarea 
                                     value={prompt}
                                     onChange={(e) => setPrompt(e.target.value)}
-                                    placeholder="Mô tả prompt (VD: Hai người đứng khoác vai nhau trên phố)..."
+                                    placeholder={t('crt_prompt_ph')}
                                     className="w-full bg-[#151515] border border-gray-800 hover:border-gray-700 focus:border-blue-600 rounded-xl px-4 py-3 text-gray-200 text-sm font-medium outline-none placeholder-gray-600 min-h-[48px] max-h-[120px] transition-all resize-none custom-scrollbar"
                                     onKeyDown={(e) => {
                                         if(e.key === 'Enter' && !e.shiftKey) {
@@ -818,7 +826,7 @@ const CreativeStudio: React.FC<CreativeStudioProps> = ({
                                         className="flex items-center gap-2 bg-[#1a1a1a] px-3 py-1.5 rounded-lg border border-gray-700 text-xs text-gray-300 whitespace-nowrap cursor-pointer hover:bg-[#252525] hover:text-white transition-all shadow-sm"
                                     >
                                         <CubeIcon className="w-3.5 h-3.5 text-purple-400" />
-                                        <span className="font-bold truncate max-w-[100px]">{activeModel?.name || "Chọn Model"}</span>
+                                        <span className="font-bold truncate max-w-[100px]">{activeModel?.name || t('cp_model_label')}</span>
                                         <ChevronDownIcon className="w-3 h-3 text-gray-500" />
                                     </div>
 

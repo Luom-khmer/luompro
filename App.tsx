@@ -7,6 +7,7 @@ import { initDB, saveImageToGallery, getGalleryImages } from './services/gallery
 import { APP_CONFIG } from './config';
 import { getFirebaseAuth, loginWithGoogle, logoutUser, listenToUserRealtime, deductUserCredits } from './services/firebaseService';
 import firebase from 'firebase/compat/app';
+import { TRANSLATIONS } from './utils/translations';
 
 // UI Components
 import ControlPanel from './components/ControlPanel';
@@ -23,7 +24,7 @@ import RestorationStudio from './components/RestorationStudio';
 import GenerativeFillStudio from './components/GenerativeFillStudio';
 import CreativeStudio from './components/CreativeStudio'; // Import mới
 
-import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, PlusIcon, WalletIcon, Squares2X2Icon, ShieldCheckIcon, HomeIcon, TrashIcon, CurrencyDollarIcon, UserCircleIcon, ArrowRightOnRectangleIcon, ArrowPathIcon, GlobeAltIcon, CheckIcon } from '@heroicons/react/24/outline';
 
 // Default Settings Constant - FORCED GOMMO PROVIDER
 const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
@@ -82,6 +83,25 @@ const App: React.FC = () => {
   // User & Local App Credits State
   const [currentUser, setCurrentUser] = useState<firebase.User | null>(null);
   const [userCredits, setUserCredits] = useState<number>(0);
+
+  // Language State
+  const [language, setLanguage] = useState<'vi' | 'en' | 'km'>('vi');
+  const [isLangDropdownOpen, setIsLangDropdownOpen] = useState(false);
+
+  // Helper for translations
+  const t = (key: string) => {
+      // @ts-ignore
+      return TRANSLATIONS[language][key] || key;
+  };
+
+  // Apply Font Class to Body
+  useEffect(() => {
+      if (language === 'km') {
+          document.body.classList.add('font-khmer');
+      } else {
+          document.body.classList.remove('font-khmer');
+      }
+  }, [language]);
 
   // Cached Gommo Models
   const [gommoModelsCache, setGommoModelsCache] = useState<GommoModel[]>([]);
@@ -547,19 +567,50 @@ const App: React.FC = () => {
                         <path d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036c-2.048 0-2.606.492-2.606 1.691v1.861h3.888l-.536 3.669h-3.352v7.98h-5.208Z" />
                     </svg>
                  </a>
+
+                 {/* Language Selector */}
+                 <div className="relative">
+                    <button 
+                        onClick={() => setIsLangDropdownOpen(!isLangDropdownOpen)}
+                        className="flex items-center justify-center w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-300 hover:text-white transition-all hover:scale-105"
+                        title="Ngôn ngữ"
+                    >
+                        <GlobeAltIcon className="w-5 h-5" />
+                    </button>
+                    {isLangDropdownOpen && (
+                        <>
+                            <div className="fixed inset-0 z-[55]" onClick={() => setIsLangDropdownOpen(false)}></div>
+                            <div className="absolute top-full left-0 mt-2 w-40 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-xl z-[60] overflow-hidden animate-fade-in">
+                                <button onClick={() => { setLanguage('vi'); setIsLangDropdownOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold hover:bg-[#252525] flex items-center justify-between ${language === 'vi' ? 'text-blue-400 bg-blue-900/10' : 'text-gray-300'}`}>
+                                    <span>Tiếng Việt</span>
+                                    {language === 'vi' && <CheckIcon className="w-3 h-3" />}
+                                </button>
+                                <button onClick={() => { setLanguage('en'); setIsLangDropdownOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold hover:bg-[#252525] flex items-center justify-between ${language === 'en' ? 'text-blue-400 bg-blue-900/10' : 'text-gray-300'}`}>
+                                    <span>English</span>
+                                    {language === 'en' && <CheckIcon className="w-3 h-3" />}
+                                </button>
+                                <button onClick={() => { setLanguage('km'); setIsLangDropdownOpen(false); }} className={`w-full text-left px-4 py-3 text-xs font-bold hover:bg-[#252525] flex items-center justify-between ${language === 'km' ? 'text-blue-400 bg-blue-900/10' : 'text-gray-300'}`}>
+                                    <span>Khmer</span>
+                                    {language === 'km' && <CheckIcon className="w-3 h-3" />}
+                                </button>
+                            </div>
+                        </>
+                    )}
+                 </div>
+
                  {currentView !== 'home' && (
                      <button onClick={() => setCurrentView('home')} className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm">
-                         <Squares2X2Icon className="w-3.5 h-3.5 stroke-[2px]" /> Chọn Công Cụ
+                         <Squares2X2Icon className="w-3.5 h-3.5 stroke-[2px]" /> {t('btn_tools')}
                      </button>
                  )}
                  {(currentView === 'concept' || currentView === 'hack-concept') && (
                     <button onClick={handleDeleteAll} className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-red-600 hover:bg-red-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-red-400 uppercase tracking-wide shadow-sm">
-                            <TrashIcon className="w-3.5 h-3.5 stroke-[2px]" /> Xoá tất cả ảnh
+                            <TrashIcon className="w-3.5 h-3.5 stroke-[2px]" /> {t('btn_delete_all')}
                     </button>
                  )}
                  {currentView === 'admin' && (
                      <button onClick={() => setCurrentView('home')} className="flex items-center gap-2 px-4 py-2 bg-[#141414] border border-gray-700 hover:border-blue-600 hover:bg-blue-900/50 rounded transition-all text-xs font-semibold text-gray-300 hover:text-blue-400 uppercase tracking-wide shadow-sm">
-                         <HomeIcon className="w-3.5 h-3.5 stroke-[2px]" /> Về trang chủ
+                         <HomeIcon className="w-3.5 h-3.5 stroke-[2px]" /> {t('btn_home')}
                      </button>
                  )}
              </div>
@@ -571,21 +622,21 @@ const App: React.FC = () => {
                         <path d="M12.75 3.03c-2.73 2.13-4.5 5.25-4.5 9.72 0 5.25 3.75 9 8.25 9 3.2 0 6.05-2.05 7.5-5.25.38-.85.83-1.63 1.35-2.34.18-.25-.05-.58-.33-.53A17.9 17.9 0 0 0 17.25 15c-3.1 0-5.25-2.25-5.25-5.25 0-2.4 1.35-4.3 3.3-5.5.25-.15.2-.55-.1-.65-1.05-.35-1.95-.57-2.45-.57z" />
                         <path d="M7.5 12.75c0-4.47 1.77-7.59 4.5-9.72 0 0-3-3-9 3-2 2-3 5.25-3 9.75 0 5.25 3.75 9 8.25 9 0 0 2.25-3 2.25-7.5 0-1.85-.35-3.35-1-4.53z" opacity="0.5"/>
                     </svg>
-                    <span>CHUỐI <span className="text-white">AI</span></span>
+                    <span>{t('app_name')} <span className="text-white"></span></span>
                 </h1>
                 <p className="text-zinc-500 text-[10px] font-medium tracking-wide mt-1 uppercase">
-                    {currentView === 'home' ? 'TỔNG HỢP CÔNG CỤ SÁNG TẠO' : 
-                     (currentView === 'hack-concept' ? 'Thay nền' : 
-                     (currentView === 'restoration' ? 'PHỤC CHẾ ẢNH CHUYÊN NGHIỆP' : 
-                     (currentView === 'creative-studio' ? 'GHÉP ẢNH SÁNG TẠO' :
-                     (currentView === 'generative-fill' ? 'GENERATIVE FILL' : 'CHẾ ĐỘ XỬ LÝ'))))}
+                    {currentView === 'home' ? t('subtitle_home') : 
+                     (currentView === 'hack-concept' ? t('subtitle_hack') : 
+                     (currentView === 'restoration' ? t('subtitle_restore') : 
+                     (currentView === 'creative-studio' ? t('subtitle_creative') :
+                     (currentView === 'generative-fill' ? t('subtitle_genfill') : t('subtitle_processing')))))}
                 </p>
              </div>
 
              <div className="flex items-center gap-3 justify-end w-1/3">
                 {isAdmin && (
                     <button onClick={() => setCurrentView(currentView === 'admin' ? 'home' : 'admin')} className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-sm font-bold shadow-sm transition-all whitespace-nowrap border ${currentView === 'admin' ? 'bg-red-900/40 border-red-500 text-red-400' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white hover:border-red-500'}`}>
-                        <ShieldCheckIcon className="w-4 h-4" /> Admin
+                        <ShieldCheckIcon className="w-4 h-4" /> {t('btn_admin')}
                     </button>
                 )}
                 {currentUser ? (
@@ -597,12 +648,12 @@ const App: React.FC = () => {
                         <div className="flex items-center gap-2">
                              {currentUser.photoURL ? <img src={currentUser.photoURL} alt="User" className="w-7 h-7 rounded-full border border-gray-600" /> : <UserCircleIcon className="w-7 h-7 text-gray-400" />}
                             <span className="hidden xl:inline text-xs font-bold text-gray-300 truncate max-w-[100px]">{currentUser.displayName}</span>
-                            <button onClick={handleLogout} title="Đăng xuất" className="text-gray-500 hover:text-red-400 transition-colors"><ArrowRightOnRectangleIcon className="w-5 h-5" /></button>
+                            <button onClick={handleLogout} title={t('btn_logout')} className="text-gray-500 hover:text-red-400 transition-colors"><ArrowRightOnRectangleIcon className="w-5 h-5" /></button>
                         </div>
                     </div>
                 ) : (
                     <button onClick={handleLogin} className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-zinc-500 rounded text-gray-300 text-sm font-bold shadow-sm transition-all mr-2 whitespace-nowrap">
-                        <UserCircleIcon className="w-4 h-4" /> Đăng nhập
+                        <UserCircleIcon className="w-4 h-4" /> {t('btn_login')}
                     </button>
                 )}
                 {isAdmin && gommoCredits !== null && (
@@ -612,16 +663,16 @@ const App: React.FC = () => {
                    </button>
                 )}
                 <button onClick={() => setIsPricingModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600/20 hover:bg-green-600/30 border border-green-500/50 rounded text-green-400 text-sm font-bold shadow-sm transition-all whitespace-nowrap">
-                    <CurrencyDollarIcon className="w-4 h-4" /> Nạp Credits
+                    <CurrencyDollarIcon className="w-4 h-4" /> {t('btn_topup')}
                 </button>
-                <button onClick={() => { setDonationModalMode('donate'); setSelectedPricingPackage(null); setIsDonationModalOpen(true); }} className="text-yellow-500 hover:text-yellow-400 text-sm font-medium flex items-center gap-1 whitespace-nowrap border border-yellow-500/30 px-3 py-1.5 rounded hover:bg-yellow-500/10 transition-colors">☕ Donate</button>
+                <button onClick={() => { setDonationModalMode('donate'); setSelectedPricingPackage(null); setIsDonationModalOpen(true); }} className="text-yellow-500 hover:text-yellow-400 text-sm font-medium flex items-center gap-1 whitespace-nowrap border border-yellow-500/30 px-3 py-1.5 rounded hover:bg-yellow-500/10 transition-colors">☕ {t('btn_donate')}</button>
                 <div className="hidden sm:block"><VisitorCounter /></div>
              </div>
         </header>
 
         <div className="flex-1 overflow-hidden relative">
             {currentView === 'home' ? (
-                <LandingPage onNavigate={setCurrentView} />
+                <LandingPage onNavigate={setCurrentView} language={language} />
             ) : currentView === 'admin' ? (
                 <AdminPanel currentUser={currentUser} gommoCredits={gommoCredits} />
             ) : currentView === 'restoration' ? (
@@ -631,6 +682,7 @@ const App: React.FC = () => {
                     userCredits={userCredits}
                     currentUser={currentUser}
                     onUpdateCredits={updateGommoCredits}
+                    language={language}
                 />
             ) : currentView === 'generative-fill' ? (
                 <GenerativeFillStudio 
@@ -639,6 +691,7 @@ const App: React.FC = () => {
                     userCredits={userCredits}
                     currentUser={currentUser}
                     onUpdateCredits={updateGommoCredits}
+                    language={language}
                 />
             ) : currentView === 'creative-studio' ? (
                 <CreativeStudio 
@@ -647,6 +700,7 @@ const App: React.FC = () => {
                     userCredits={userCredits}
                     currentUser={currentUser}
                     onUpdateCredits={updateGommoCredits}
+                    language={language}
                 />
             ) : (
                 <div className="flex flex-row h-[calc(100vh-80px)] w-full overflow-hidden">
@@ -657,7 +711,7 @@ const App: React.FC = () => {
                                     <label className={`group relative w-full max-w-3xl h-48 border border-dashed rounded-2xl cursor-pointer transition-all duration-300 flex items-center justify-center gap-6 shadow-xl overflow-hidden ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-600 hover:border-sky-500 bg-[#151515] hover:bg-[#1a1a1a] hover:shadow-sky-500/10'}`} onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }} onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}>
                                         <div className="absolute inset-0 bg-gradient-to-r from-sky-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                                         <div className="relative w-16 h-16 rounded-full bg-[#222] group-hover:bg-sky-500/20 border border-gray-700 group-hover:border-sky-500 flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-lg"><PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-sky-400 transition-colors" /></div>
-                                        <div className="relative flex flex-col items-start z-10"><span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">Thêm ảnh {currentView === 'hack-concept' ? 'Thay nền' : 'Concept'}</span><span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2"><PhotoIcon className="w-4 h-4" /> Hỗ trợ JPG, PNG, WEBP (Kéo thả vào đây)</span></div>
+                                        <div className="relative flex flex-col items-start z-10"><span className="text-xl font-bold text-gray-300 group-hover:text-white transition-colors uppercase tracking-wide">{t('res_welcome_title')}</span><span className="text-sm text-gray-500 group-hover:text-gray-400 mt-1 flex items-center gap-2"><PhotoIcon className="w-4 h-4" /> {t('res_welcome_desc')}</span></div>
                                         <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
                                     </label>
                                 </div>
@@ -668,9 +722,9 @@ const App: React.FC = () => {
                                         <ImageCard item={img} onToggleSelect={(id) => setActiveImages(p => p.map(x => x.id === id ? { ...x, isSelected: !x.isSelected } : x))} onDelete={(id) => setActiveImages(p => p.filter(x => x.id !== id))} onRegenerate={handleRegenerateImage} onDoubleClick={() => openLightbox(img)} onView={() => openLightbox(img)} onUpscale={currentView === 'hack-concept' ? handleUpscaleImage : undefined} />
                                         </div>
                                     ))}
-                                    <label className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px] ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500'}`} title="Thêm ảnh mới" onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }} onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}>
+                                    <label className={`border-2 border-dashed rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-300 group min-h-[300px] ${isDragging ? 'border-sky-500 bg-sky-900/10 ring-2 ring-sky-500/20' : 'border-gray-700 bg-[#151515] hover:bg-[#1a1a1a] hover:border-gray-500'}`} title={t('res_upload_title')} onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(true); }} onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); }} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setIsDragging(false); handleImageUpload(e.dataTransfer.files); }}>
                                         <div className="bg-gray-800 group-hover:bg-gray-700 p-4 rounded-full transition-colors mb-4"><PlusIcon className="w-8 h-8 text-gray-400 group-hover:text-white" /></div>
-                                        <span className="text-gray-400 group-hover:text-white font-medium text-sm">Thêm ảnh</span>
+                                        <span className="text-gray-400 group-hover:text-white font-medium text-sm">{t('res_upload_title')}</span>
                                         <input type="file" multiple onChange={(e) => e.target.files && handleImageUpload(e.target.files)} className="hidden" accept="image/*" />
                                     </label>
                                 </div>
@@ -693,6 +747,7 @@ const App: React.FC = () => {
                             setViewMode={() => {}}
                             isAdmin={isAdmin}
                             onModelsLoaded={handleModelsLoaded}
+                            language={language}
                         />
                     </aside>
                 </div>

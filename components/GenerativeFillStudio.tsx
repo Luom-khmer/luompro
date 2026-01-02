@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useMemo, MouseEvent } from 'react';
 import { 
     PaintBrushIcon, 
@@ -19,6 +20,7 @@ import {
 import { generateGommoImage, pollGommoImageCompletion, fetchGommoModels } from '../services/gommoService';
 import { deductUserCredits } from '../services/firebaseService';
 import { GommoModel } from '../types';
+import { TRANSLATIONS } from '../utils/translations';
 
 interface GenerativeFillStudioProps {
     apiKey: string;
@@ -26,6 +28,7 @@ interface GenerativeFillStudioProps {
     userCredits: number;
     currentUser: any;
     onUpdateCredits: () => void;
+    language?: 'vi' | 'en' | 'km';
 }
 
 const BRUSH_COLORS = ['#ef4444', '#3b82f6', '#eab308', '#ec4899', '#22d3ee', '#f97316'];
@@ -40,7 +43,7 @@ const RATIO_LABELS: Record<string, string> = {
 };
 
 const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({ 
-    gommoApiKey, userCredits, currentUser, onUpdateCredits 
+    gommoApiKey, userCredits, currentUser, onUpdateCredits, language = 'vi'
 }) => {
     // --- State ---
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -74,6 +77,11 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
     const [isDrawing, setIsDrawing] = useState(false);
     const lastPos = useRef<{x: number, y: number} | null>(null);
     const [hasMask, setHasMask] = useState(false);
+
+    const t = (key: string) => {
+        // @ts-ignore
+        return TRANSLATIONS[language][key] || key;
+    };
 
     // --- Helpers ---
     
@@ -447,7 +455,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                              <PaintBrushIcon className="w-5 h-5 text-white" />
                         </div>
                         <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-red-400 bg-clip-text text-transparent tracking-tight">
-                            Generative Fill
+                            {t('gen_title')}
                         </h2>
                     </div>
                     <button 
@@ -465,7 +473,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                         
                         {/* Model Label */}
                         <div className="flex justify-between items-center mb-3">
-                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">MODEL</label>
+                            <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('cp_model_label')}</label>
                             <div className="flex items-center gap-2">
                                 <span className="text-[10px] text-gray-500 font-medium">Đa model</span>
                                 <div className="w-8 h-4 bg-gray-700 rounded-full relative opacity-50"><div className="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full"></div></div>
@@ -502,7 +510,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                         <div className="grid grid-cols-3 gap-2 mb-4">
                             {/* RATIO */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">RATIO</label>
+                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">{t('cp_ratio_label')}</label>
                                 <div className="relative">
                                     <select value={selectedRatio} onChange={(e) => setSelectedRatio(e.target.value)} className="w-full bg-[#151515] text-white text-[11px] font-bold py-2 px-2 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-blue-500 cursor-pointer">
                                         {activeRatios.map(r => <option key={r} value={r}>{r}</option>)}
@@ -511,7 +519,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                             </div>
                             {/* MODE */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">MODE</label>
+                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">{t('cp_mode_label')}</label>
                                 <div className="relative">
                                     <select value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)} disabled={activeModes.length === 0} className="w-full bg-[#151515] text-white text-[11px] font-bold py-2 px-2 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50">
                                         {activeModes.length === 0 && <option value="">Default</option>}
@@ -521,7 +529,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                             </div>
                             {/* RES */}
                             <div>
-                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">RES</label>
+                                <label className="text-[10px] font-bold text-gray-500 block mb-1 uppercase">{t('cp_res_label')}</label>
                                 <div className="relative">
                                     <select value={selectedResolution} onChange={(e) => setSelectedResolution(e.target.value)} disabled={activeResolutions.length === 0} className="w-full bg-[#151515] text-white text-[11px] font-bold py-2 px-2 rounded-lg border border-gray-700 appearance-none focus:outline-none focus:border-blue-500 cursor-pointer disabled:opacity-50">
                                         {activeResolutions.length === 0 && <option value="1k">1k</option>}
@@ -533,7 +541,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
 
                         {/* Price */}
                         <div className="flex items-center justify-between pt-3 border-t border-gray-800">
-                            <span className="text-xs text-gray-500 font-medium">Chi phí ước tính:</span>
+                            <span className="text-xs text-gray-500 font-medium">{t('cp_cost_est')}</span>
                             <div className="flex items-center gap-1.5 text-yellow-500 font-bold text-sm bg-yellow-900/10 px-2 py-0.5 rounded border border-yellow-500/20">
                                 <BanknotesIcon className="w-4 h-4" />
                                 <span>{estimatedCost} Credits</span>
@@ -545,7 +553,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                 {/* Brush Size */}
                 <div className="mb-6">
                     <div className="flex justify-between text-xs text-gray-400 mb-2 font-bold uppercase">
-                        <span>Brush Size</span>
+                        <span>{t('gen_brush_size')}</span>
                         <span>{brushSize}px</span>
                     </div>
                     <input 
@@ -567,7 +575,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
 
                 {/* Brush Color */}
                 <div className="mb-6">
-                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">Brush Color</label>
+                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">{t('gen_brush_color')}</label>
                     <div className="flex gap-2">
                         {BRUSH_COLORS.map(c => (
                             <button 
@@ -586,24 +594,24 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                         onClick={clearMask}
                         className="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-300 flex items-center justify-center gap-2 border border-gray-700"
                     >
-                        <TrashIcon className="w-4 h-4" /> Clear mask
+                        <TrashIcon className="w-4 h-4" /> {t('gen_clear_mask')}
                     </button>
                     <button 
                         onClick={() => { setBrushSize(35); setPrompt(''); }}
                         className="flex-1 py-2 rounded bg-gray-800 hover:bg-gray-700 text-xs font-bold text-gray-300 flex items-center justify-center gap-2 border border-gray-700"
                     >
-                        <ArrowPathIcon className="w-4 h-4" /> Reset settings
+                        <ArrowPathIcon className="w-4 h-4" /> {t('gen_reset')}
                     </button>
                 </div>
 
                 {/* Prompt */}
                 <div className="mb-6">
-                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">Mô tả thay đổi</label>
+                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">{t('gen_prompt_label')}</label>
                     <div className="relative">
                         <textarea 
                             value={prompt}
                             onChange={(e) => setPrompt(e.target.value)}
-                            placeholder={hasMask ? "Ví dụ: 'Thêm kính mát', 'Xóa vật thể'..." : "Vẽ lên ảnh rồi nhập mô tả..."}
+                            placeholder={hasMask ? "Ví dụ: 'Thêm kính mát', 'Xóa vật thể'..." : t('gen_prompt_ph')}
                             className="w-full bg-[#1a1a1a] border border-gray-700 rounded-lg p-3 text-sm text-gray-200 focus:outline-none focus:border-blue-500 h-28 resize-none"
                         />
                         <SparklesIcon className="w-5 h-5 text-gray-500 absolute bottom-3 right-3" />
@@ -621,45 +629,43 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                     }`}
                 >
                     {isProcessing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <PaintBrushIcon className="w-5 h-5" />}
-                    {isProcessing ? 'Đang xử lý...' : 'Generative Fill'}
+                    {isProcessing ? t('res_processing') : t('gen_btn_generate')}
                 </button>
 
                 {/* View Modes */}
                 <div className="mb-6">
-                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">Chế độ xem</label>
+                    <label className="text-xs text-gray-400 font-bold uppercase mb-2 block">{t('gen_view_mode')}</label>
                     <div className="grid grid-cols-3 gap-1 bg-[#1a1a1a] p-1 rounded-lg border border-gray-800">
                         <button 
                             onClick={() => setViewMode('original')}
                             className={`py-1.5 rounded text-[10px] font-bold uppercase transition-all ${viewMode === 'original' ? 'bg-gray-700 text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
-                            Gốc
+                            {t('res_original')}
                         </button>
                         <button 
                             onClick={() => resultSrc && setViewMode('edited')}
                             disabled={!resultSrc}
                             className={`py-1.5 rounded text-[10px] font-bold uppercase transition-all ${viewMode === 'edited' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-300 disabled:opacity-30'}`}
                         >
-                            Đã sửa
+                            {t('res_result')}
                         </button>
                         <button 
                             onClick={() => resultSrc && setViewMode('compare')}
                             disabled={!resultSrc}
                             className={`py-1.5 rounded text-[10px] font-bold uppercase transition-all ${viewMode === 'compare' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-300 disabled:opacity-30'}`}
                         >
-                            So sánh
+                            {t('res_compare')}
                         </button>
                     </div>
                 </div>
 
                 {/* Instructions */}
                 <div className="mt-auto p-4 bg-[#1a1a1a] border border-gray-800 rounded-xl text-[11px] text-gray-400 leading-relaxed">
-                    <strong className="block text-white mb-2 uppercase">Hướng dẫn:</strong>
+                    <strong className="block text-white mb-2 uppercase">{t('gen_guide_title')}</strong>
                     <ul className="list-decimal pl-3 space-y-1">
-                        <li>Vẽ lên vùng bạn muốn chỉnh sửa</li>
-                        <li>Nhập mô tả thay đổi vào ô bên trên</li>
-                        <li>Nhấn "Generative Fill"</li>
-                        <li>Nếu không vẽ vùng, thay đổi sẽ áp dụng cho toàn ảnh</li>
-                        <li>Nếu để trống prompt và có mask, sẽ xóa đối tượng được mask</li>
+                        <li>{t('gen_guide_1')}</li>
+                        <li>{t('gen_guide_2')}</li>
+                        <li>{t('gen_guide_3')}</li>
                     </ul>
                 </div>
             </aside>
@@ -672,7 +678,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                             <div className="w-20 h-20 bg-[#1a1a1a] border border-gray-700 rounded-2xl flex items-center justify-center mb-4 group-hover:border-blue-500 transition-colors shadow-xl">
                                 <PhotoIcon className="w-8 h-8 text-gray-500 group-hover:text-blue-500" />
                             </div>
-                            <h3 className="text-xl font-bold text-white mb-1">Tải ảnh lên</h3>
+                            <h3 className="text-xl font-bold text-white mb-1">{t('res_upload_title')}</h3>
                             <p className="text-sm text-gray-500">JPG, PNG (Max 10MB)</p>
                             <input type="file" className="hidden" onChange={(e) => e.target.files && handleFileUpload(e.target.files[0])} />
                         </label>
@@ -687,11 +693,11 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                                 <div className="relative w-full h-full flex gap-1">
                                     <div className="relative">
                                         <img src={imageSrc} className="max-h-[85vh] object-contain" />
-                                        <span className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 text-xs rounded">Gốc</span>
+                                        <span className="absolute bottom-2 left-2 bg-black/60 text-white px-2 py-1 text-xs rounded">{t('res_original')}</span>
                                     </div>
                                     <div className="relative">
                                         <img src={resultSrc} className="max-h-[85vh] object-contain" />
-                                        <span className="absolute bottom-2 left-2 bg-blue-600/80 text-white px-2 py-1 text-xs rounded">Đã sửa</span>
+                                        <span className="absolute bottom-2 left-2 bg-blue-600/80 text-white px-2 py-1 text-xs rounded">{t('res_result')}</span>
                                     </div>
                                 </div>
                             ) : (
@@ -723,7 +729,7 @@ const GenerativeFillStudio: React.FC<GenerativeFillStudioProps> = ({
                             {/* View Label Badge */}
                             <div className="absolute top-4 left-4 pointer-events-none">
                                 <span className="bg-black/70 backdrop-blur text-white text-xs font-bold px-3 py-1.5 rounded-full border border-white/10 uppercase">
-                                    {viewMode === 'compare' ? 'Chế độ so sánh' : (viewMode === 'edited' ? 'Kết quả' : 'Gốc')}
+                                    {viewMode === 'compare' ? t('res_compare') : (viewMode === 'edited' ? t('res_result') : t('res_original'))}
                                 </span>
                             </div>
                             

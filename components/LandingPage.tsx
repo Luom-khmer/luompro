@@ -12,49 +12,56 @@ import {
     BoltIcon,
     PuzzlePieceIcon
 } from '@heroicons/react/24/outline';
+import { TRANSLATIONS } from '../utils/translations';
 
 interface LandingPageProps {
   onNavigate: (mode: ViewMode) => void;
+  language?: 'vi' | 'en' | 'km';
 }
 
-const TOOLS = [
-  {
-    id: 'generative-fill',
-    title: 'GENERATIVE FILL',
-    description: 'Xóa vật thể & mở rộng ảnh',
-    icon: PaintBrushIcon,
-    color: 'blue',
-    mode: 'generative-fill'
-  },
-  {
-    id: 'hack-concept-pro',
-    title: 'Thay nền',
-    description: 'Hack nền, ánh sáng & góc máy',
-    icon: BoltIcon,
-    color: 'purple',
-    isHighlight: true,
-    mode: 'hack-concept'
-  },
-  {
-    id: 'creative-studio',
-    title: 'GHÉP ẢNH SÁNG TẠO',
-    description: 'Biến đổi chi tiết ảnh bằng AI',
-    icon: PuzzlePieceIcon,
-    color: 'pink',
-    mode: 'creative-studio'
-  },
-  {
-    id: 'restoration',
-    title: 'PHỤC CHẾ ẢNH',
-    description: 'Khôi phục màu & chi tiết',
-    icon: ClockIcon,
-    color: 'green',
-    mode: 'restoration'
-  }
-];
-
-const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
+const LandingPage: React.FC<LandingPageProps> = ({ onNavigate, language = 'vi' }) => {
   const [activeIndex, setActiveIndex] = useState(1); // Mặc định chọn Hack Concept Pro
+
+  const t = (key: string) => {
+      // @ts-ignore
+      return TRANSLATIONS[language][key] || key;
+  };
+
+  const TOOLS = [
+    {
+      id: 'generative-fill',
+      title: t('tool_genfill_title'),
+      description: t('tool_genfill_desc'),
+      icon: PaintBrushIcon,
+      color: 'blue',
+      mode: 'generative-fill'
+    },
+    {
+      id: 'hack-concept-pro',
+      title: t('tool_hack_title'),
+      description: t('tool_hack_desc'),
+      icon: BoltIcon,
+      color: 'purple',
+      isHighlight: true,
+      mode: 'hack-concept'
+    },
+    {
+      id: 'creative-studio',
+      title: t('tool_creative_title'),
+      description: t('tool_creative_desc'),
+      icon: PuzzlePieceIcon,
+      color: 'pink',
+      mode: 'creative-studio'
+    },
+    {
+      id: 'restoration',
+      title: t('tool_restore_title'),
+      description: t('tool_restore_desc'),
+      icon: ClockIcon,
+      color: 'green',
+      mode: 'restoration'
+    }
+  ];
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % TOOLS.length);
@@ -99,10 +106,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       {/* Header Text */}
       <div className="text-center mb-4 md:mb-12 z-10 animate-fade-in mt-4 md:mt-0 px-4">
         <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter text-white mb-2">
-            CÔNG CỤ <span className="text-orange-500">AI</span>
+            {t('landing_title')} <span className="text-orange-500">AI</span>
         </h1>
         <p className="text-gray-400 text-sm md:text-base font-medium tracking-wide">
-            Chọn công cụ bạn muốn sử dụng
+            {t('landing_subtitle')}
         </p>
       </div>
 
@@ -168,7 +175,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                                     onClick={(e) => { e.stopPropagation(); handleEnter(); }}
                                     className="mt-8 px-5 py-2 rounded-full bg-white/10 border border-white/20 hover:bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm transition-all hover:scale-105"
                                 >
-                                    Nhấn Enter để mở
+                                    {t('landing_enter')}
                                 </button>
                             )}
                         </div>
@@ -198,7 +205,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             >
                 →
             </button>
-            <span>Di chuyển</span>
+            <span>{t('landing_move')}</span>
          </div>
          <div className="w-px h-4 bg-gray-800"></div>
          <div className="flex items-center gap-2">
@@ -208,12 +215,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             >
                 ENTER
             </button>
-            <span>Chọn</span>
+            <span>{t('landing_select')}</span>
          </div>
       </div>
       
       <div className="relative md:absolute bottom-2 text-[9px] text-gray-700 font-mono mt-2 md:mt-0">
-         BẢN QUYỀN ỨNG DỤNG AI THUỘC SỞ HỮU LƯỢM
+         {t('copyright')}
       </div>
 
     </div>

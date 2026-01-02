@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { GenerationSettings, WeatherOption, StoredImage, ViewMode, GommoModel, GommoRatio, GommoResolution } from '../types';
 import { MicrophoneIcon, XCircleIcon, ChevronDownIcon, ChevronUpIcon, PhotoIcon, ArrowPathIcon, SparklesIcon, TrashIcon, CheckIcon, BoltIcon, ArchiveBoxIcon, ArrowDownTrayIcon, DocumentMagnifyingGlassIcon, CpuChipIcon, ArrowsPointingOutIcon, KeyIcon, LinkIcon, GlobeAltIcon, ServerStackIcon, CloudArrowDownIcon, ArrowUturnLeftIcon, EyeIcon, ExclamationCircleIcon, CheckCircleIcon, PaintBrushIcon, Cog6ToothIcon, InformationCircleIcon, ShieldCheckIcon, LightBulbIcon, BanknotesIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { analyzeReferenceImage, analyzeHackConceptImage, validateApiKey } from '../services/geminiService';
 import { fetchGommoModels } from '../services/gommoService';
 import { APP_CONFIG } from '../config';
+import { TRANSLATIONS } from '../utils/translations';
 
 interface ControlPanelProps {
   settings: GenerationSettings;
@@ -16,6 +18,7 @@ interface ControlPanelProps {
   setViewMode: (mode: ViewMode) => void;
   isAdmin?: boolean;
   onModelsLoaded?: (models: GommoModel[]) => void;
+  language?: 'vi' | 'en' | 'km';
 }
 
 // Giá trị mặc định để reset
@@ -116,7 +119,8 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   onSyncGallery,
   viewMode,
   isAdmin = false,
-  onModelsLoaded
+  onModelsLoaded,
+  language = 'vi'
 }) => {
   
   // Tab State
@@ -153,6 +157,11 @@ const ControlPanel: React.FC<ControlPanelProps> = ({
   // --- HACK CONCEPT PRO SPECIFIC STATES ---
   const [hackModalStep, setHackModalStep] = useState<'intro' | 'analyzing' | 'selection' | 'off'>('off');
   const [activeHackTab, setActiveHackTab] = useState<'fullBody' | 'portrait' | 'closeUp'>('fullBody');
+
+  const t = (key: string) => {
+      // @ts-ignore
+      return TRANSLATIONS[language][key] || key;
+  };
 
   // --- TOP LEVEL HOOKS FOR MODEL & RATIO LOGIC ---
   const isGommoProvider = true; // FORCE GOMMO ALWAYS FOR UI
@@ -582,11 +591,11 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
   const renderTabNavigation = () => (
       <div className="flex p-1 bg-[#1a1a1a] rounded-lg border border-gray-700 mb-4">
           <button onClick={() => setActiveTab('studio')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-bold transition-all duration-300 ${activeTab === 'studio' ? 'bg-gradient-to-r from-blue-600 to-sky-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-            <PaintBrushIcon className="w-4 h-4" /> Studio Tạo Ảnh
+            <PaintBrushIcon className="w-4 h-4" /> {t('cp_tab_studio')}
           </button>
           
           <button onClick={() => setActiveTab('keys')} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-bold transition-all duration-300 ${activeTab === 'keys' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-              <KeyIcon className="w-4 h-4" /> Cấu Hình Key
+              <KeyIcon className="w-4 h-4" /> {t('cp_tab_keys')}
           </button>
       </div>
   );
@@ -615,7 +624,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
                    {settings.apiKey && <button onClick={handleResetGeminiKey} className="absolute right-2 top-2.5 text-gray-500 hover:text-white"><ArrowUturnLeftIcon className="w-4 h-4"/></button>}
                </div>
                <div className="mt-3 flex gap-2">
-                   <button onClick={handleConnectKey} disabled={isValidatingKey} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded text-xs font-bold uppercase tracking-wide transition-all shadow-md">{isValidatingKey ? 'Đang kiểm tra...' : 'Lưu & Kiểm tra Key'}</button>
+                   <button onClick={handleConnectKey} disabled={isValidatingKey} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded text-xs font-bold uppercase tracking-wide transition-all shadow-md">{isValidatingKey ? 'Đang kiểm tra...' : t('cp_btn_connect')}</button>
                </div>
                {keyError && <p className="text-red-400 text-xs mt-2 flex items-center gap-1"><ExclamationCircleIcon className="w-3 h-3"/> {keyError}</p>}
            </div>
@@ -729,7 +738,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
               
               {/* Header */}
               <div className="flex justify-between items-center mb-4">
-                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">MODEL</label>
+                  <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">{t('cp_model_label')}</label>
                   <div className="flex items-center gap-2">
                       <span className="text-[10px] text-gray-500 font-medium">Đa model</span>
                       {/* Placeholder Toggle Switch */}
@@ -777,7 +786,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
               <div className="grid grid-cols-3 gap-3 mb-5">
                   {/* RATIO */}
                   <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">RATIO</label>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">{t('cp_ratio_label')}</label>
                       <div className="relative">
                           <select 
                               value={settings.aspectRatio}
@@ -794,7 +803,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
 
                   {/* MODE */}
                   <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">MODE</label>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">{t('cp_mode_label')}</label>
                       <div className="relative">
                           <select 
                               value={settings.gommoMode || ''}
@@ -813,7 +822,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
 
                   {/* RES */}
                   <div>
-                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">RES</label>
+                      <label className="text-[10px] font-bold text-gray-500 block mb-1.5 uppercase">{t('cp_res_label')}</label>
                       <div className="relative">
                           <select 
                               value={settings.gommoResolution || ''}
@@ -834,7 +843,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
               {/* Price Calculation Footer */}
               <div className="flex items-center justify-between pt-2 mt-2 border-t border-gray-800/50">
                   <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
-                      <span>Chi phí ước tính:</span>
+                      <span>{t('cp_cost_est')}</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-yellow-500 font-bold text-sm">
                       <BanknotesIcon className="w-4 h-4" />
@@ -869,7 +878,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
               }}
           >
               <h3 className={`font-semibold text-lg ${viewMode === 'hack-concept' ? 'text-purple-300' : 'text-gray-200'}`}>
-                  {viewMode === 'hack-concept' ? "Ảnh tham chiếu" : "Ảnh tham chiếu (Style)"}
+                  {viewMode === 'hack-concept' ? "Ảnh tham chiếu" : t('cp_ref_image')}
               </h3>
               {/* Ẩn icon mũi tên nếu đang ở chế độ Hack Concept (vì luôn mở) */}
               {viewMode !== 'hack-concept' && (
@@ -888,7 +897,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
                               <div className="absolute bottom-2 right-2 flex gap-2 z-20">
                                   <button onClick={() => { setPendingReferenceFile(settings.referenceImage as File); setShowAnalysisModal(true); }} disabled={isAnalyzing} className="bg-black/60 hover:bg-sky-600 text-white text-sm px-3 py-1.5 rounded backdrop-blur flex items-center gap-1 transition-colors border border-gray-500/50">
                                       {isAnalyzing ? <ArrowPathIcon className="w-5 h-5 animate-spin" /> : <SparklesIcon className="w-5 h-5" />}
-                                      {isAnalyzing ? '...' : 'Trích xuất lại'}
+                                      {isAnalyzing ? '...' : t('cp_ref_extract')}
                                   </button>
                               </div>
                           )}
@@ -955,9 +964,9 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
             </div>
         )}
 
-        <div className="relative flex justify-center items-center mb-3"><h3 className="font-semibold text-gray-200 text-lg">Mô tả prompt</h3></div>
+        <div className="relative flex justify-center items-center mb-3"><h3 className="font-semibold text-gray-200 text-lg">{t('cp_prompt_desc')}</h3></div>
         <div className="relative">
-            <textarea value={settings.userPrompt} onChange={(e) => onSettingsChange({ userPrompt: e.target.value })} placeholder={settings.referenceImage ? "Mô tả bổ sung..." : "Mô tả chi tiết bối cảnh..."} className="w-full bg-[#333] border border-gray-600 rounded px-3 py-2 text-gray-200 text-lg focus:outline-none focus:border-sky-500 min-h-[140px] resize-y pr-14 leading-relaxed"/>
+            <textarea value={settings.userPrompt} onChange={(e) => onSettingsChange({ userPrompt: e.target.value })} placeholder={settings.referenceImage ? "Mô tả bổ sung..." : t('cp_prompt_ph')} className="w-full bg-[#333] border border-gray-600 rounded px-3 py-2 text-gray-200 text-lg focus:outline-none focus:border-sky-500 min-h-[140px] resize-y pr-14 leading-relaxed"/>
             <div className="absolute right-2 top-2 flex gap-1 text-gray-400">
                 {settings.userPrompt && <button onClick={() => onSettingsChange({ userPrompt: '' })}><XCircleIcon className="w-6 h-6 hover:text-white" /></button>}
                 <MicrophoneIcon className="w-6 h-6 cursor-pointer hover:text-white" />
@@ -969,7 +978,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
   const renderOriginalOptions = () => (
     <div className={`border border-teal-500/50 rounded-lg bg-[#1a1a1a]`}>
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsOptionsOpen(!isOptionsOpen)}>
-            <h3 className="font-semibold text-gray-200 text-lg">Tùy chọn ảnh gốc</h3>
+            <h3 className="font-semibold text-gray-200 text-lg">{t('cp_opt_original')}</h3>
             <div className="absolute right-5">{isOptionsOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}</div>
         </div>
         {isOptionsOpen && (
@@ -1003,7 +1012,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
     return (
     <div className="border border-blue-500/50 rounded-lg bg-[#1a1a1a]">
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsVisualEffectsOpen(!isVisualEffectsOpen)}>
-            <h3 className="font-semibold text-gray-200 text-lg">Hiệu ứng hình ảnh</h3>
+            <h3 className="font-semibold text-gray-200 text-lg">{t('cp_opt_visual')}</h3>
             <div className="absolute right-5">{isVisualEffectsOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}</div>
         </div>
         {isVisualEffectsOpen && (
@@ -1045,7 +1054,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
   const renderLightingEffects = () => (
     <div className="border border-orange-500/50 rounded-lg bg-[#1a1a1a]">
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsLightingOpen(!isLightingOpen)}>
-            <h3 className="font-semibold text-gray-200 text-lg">Hiệu ứng ánh sáng</h3>
+            <h3 className="font-semibold text-gray-200 text-lg">{t('cp_opt_light')}</h3>
             <div className="absolute right-5">{isLightingOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}</div>
         </div>
         {isLightingOpen && (
@@ -1071,7 +1080,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
   const renderGallery = () => (
     <div className="border border-purple-500/50 rounded-lg bg-[#1a1a1a] mt-5">
         <div className="relative flex justify-center items-center p-5 cursor-pointer hover:bg-gray-800 rounded-t-lg transition-colors" onClick={() => setIsGalleryOpen(!isGalleryOpen)}>
-            <h3 className="font-semibold text-gray-200 text-lg flex items-center gap-2"><ArchiveBoxIcon className="w-6 h-6 text-purple-500" /> Kho Ảnh ({galleryItems.length})</h3>
+            <h3 className="font-semibold text-gray-200 text-lg flex items-center gap-2"><ArchiveBoxIcon className="w-6 h-6 text-purple-500" /> {t('cp_gallery')} ({galleryItems.length})</h3>
             <div className="absolute right-5 flex items-center gap-2">
                 {onSyncGallery && <button onClick={(e) => { e.stopPropagation(); onSyncGallery(); }} className="bg-teal-600/30 hover:bg-teal-600 text-teal-400 hover:text-white p-1.5 rounded transition-all"><CloudArrowDownIcon className="w-5 h-5" /></button>}
                 {isGalleryOpen ? <ChevronUpIcon className="w-6 h-6 text-gray-500" /> : <ChevronDownIcon className="w-6 h-6 text-gray-500" />}
@@ -1114,7 +1123,8 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
     </div>
   );
 
-  // --- NEW HACK CONCEPT PRO MODAL ---
+  // ... (renderHackConceptModal and renderAnalysisModal remain largely unchanged as they are modals)
+  // Re-inserting them for completeness
   const renderHackConceptModal = () => {
     if (hackModalStep === 'off') return null;
 
@@ -1193,7 +1203,6 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
     );
   };
 
-  // Analysis Modal rendered as function call (inline) to avoid remounting
   const renderAnalysisModal = () => {
     if (!showAnalysisModal) return null;
     return (
@@ -1203,7 +1212,6 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
                     <h3 className="text-xl font-bold text-white flex items-center gap-2"><DocumentMagnifyingGlassIcon className="w-6 h-6 text-sky-500" /> Chọn chế độ phân tích</h3>
                 </div>
                 <div className="p-6 grid gap-4">
-                    {/* HACK CONCEPT PRO MODE is handled by separate modal now, keeping UI logic clean */}
                     
                     <button onClick={() => handleAnalysisSelection('basic')} className="flex flex-col gap-1 p-4 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-600 hover:border-sky-500 transition-all text-left group">
                         <span className="text-white font-bold text-lg flex items-center justify-between">Phân tích Cơ bản<SparklesIcon className="w-5 h-5 text-gray-500 group-hover:text-sky-400" /></span>
@@ -1237,7 +1245,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
         <div className="h-full bg-[#111] border-l border-gray-800 p-4 flex flex-col gap-4 overflow-y-auto text-lg custom-scrollbar">
             <div className="flex items-center justify-center py-4 border-b border-gray-800 mb-2">
                 <h2 className={`text-xl font-bold uppercase tracking-wide text-center ${viewMode === 'hack-concept' ? 'text-purple-500' : 'text-blue-500'}`}>
-                    {viewMode === 'hack-concept' ? 'Thay nền' : 'FAKE CONCEPT'}
+                    {viewMode === 'hack-concept' ? t('tool_hack_title') : 'FAKE CONCEPT'}
                 </h2>
             </div>
 
@@ -1266,7 +1274,7 @@ Photorealistic, seamless blend, no cutout edges/halo, no text/watermark.`;
             )}
 
             <div className="mt-4 text-center text-sm text-gray-600 pb-4">
-                BẢN QUYỀN ỨNG DỤNG AI THUỘC SỞ HỮU LƯỢM
+                {t('copyright')}
             </div>
         </div>
     </>
